@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/images">
+        <file>retry.png</file>
+        <file>grid.png</file>
+        <file>pol.png</file>
+        <file>ang.png</file>
+        <file>con.png</file>
+    </qresource>
+    <qresource prefix="/translations">
+        <file>app_en.qm</file>
+        <file>app_pl.qm</file>
+    </qresource>
+</RCC>
