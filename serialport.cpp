@@ -55,6 +55,22 @@ void serialport::refreshConnection(Ui::MainWindow *ui) {
     connectSerialPort(ui->comboBoxSerialPorts->currentText());
 }
 
+void serialport::sendFlag(Ui::MainWindow *ui) {
+    QString selected = ui->FlagiComboBox->currentText();
+    QByteArray data;
+
+    if (selected == "Czujnik 1") {
+        data = "A\n";
+    } else if (selected == "Czujnik 2") {
+        data = "B\n";
+    } else if (selected == "Czujnik 3") {
+        data = "C\n";
+    }
+
+    serialPort->write(data);
+    qDebug() << "Wysłano flagę:" << data;
+}
+
 void serialport::sendTargetCoordinates(Ui::MainWindow *ui) {
     bool okX, okY;
     float targetX = ui->lineEditTargetX->text().toFloat(&okX);
@@ -84,34 +100,52 @@ void serialport::populateAvailablePorts(Ui::MainWindow *ui) {
 
 void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QGraphicsScene *scene, const QList<QByteArray> &values)
 {
-    // Sprawdzenie, czy mamy pełne dane
-    QStringList dataList = QString(values.join(' ')).split(' ');
+    for (const QByteArray &line : values) {
+        QString trimmedLine = QString::fromUtf8(line).trimmed();
 
-    if (dataList.size() == 64) {
-        QList<QList<int>> sensorData;
-        for (int i = 0; i < 8; ++i) {
-            QList<int> row;
-            for (int j = 0; j < 8; ++j) {
-                int value = dataList[i * 8 + j].toInt();
-                row.append(value);
+        if (trimmedLine == "A" || trimmedLine == "B" || trimmedLine == "C") {
+            // Otrzymaliśmy informacje o tym, z którego czujnika będą następne dane
+            currentSensor = trimmedLine.at(0).toLatin1();
+        } else {
+            // Ta linia powinna zawierać 64 wartości pomiarowe
+            QStringList dataList = trimmedLine.split(' ', Qt::SkipEmptyParts);
+            if (dataList.size() == 64) {
+                QList<QList<int>> sensorData;
+                for (int i = 0; i < 8; ++i) {
+                    QList<int> row;
+                    for (int j = 0; j < 8; ++j) {
+                        int value = dataList[i * 8 + j].toInt();
+                        row.append(value);
+                    }
+                    sensorData.append(row);
+                }
+
+                // Zapisz otrzymane dane w mapie
+                sensorLastData[currentSensor] = sensorData;
+
+                // Sprawdź, który czujnik jest obecnie wybrany w QComboBox
+                QString selected = ui->FlagiComboBox->currentText();
+                char selectedChar = '\0';
+                if (selected == "Czujnik 1") selectedChar = 'A';
+                else if (selected == "Czujnik 2") selectedChar = 'B';
+                else if (selected == "Czujnik 3") selectedChar = 'C';
+
+                // Jeśli aktualnie wybrany czujnik to ten, z którego właśnie przyszły dane - wyświetl je
+                if (selectedChar == currentSensor) {
+                    QMetaObject::invokeMethod(mainWindow, [ui, scene, sensorData]() {
+                            Draw::updateSensorData(ui, scene, sensorData);
+                        }, Qt::QueuedConnection);
+                }
+
+            } else {
+                qDebug() << "Oczekiwano 64 wartości, odebrano: " << dataList.size();
             }
-            sensorData.append(row);
         }
-
-        // Debugowanie przetworzonych danych
-        qDebug() << "Przetworzone dane z czujnika:";
-        for (const auto &row : sensorData) {
-            qDebug() << row;
-        }
-
-        // Aktualizacja danych na scenie graficznej
-        QMetaObject::invokeMethod(mainWindow, [ui, scene, sensorData]() {
-                Draw::updateSensorData(ui, scene, sensorData);
-            }, Qt::QueuedConnection);
-    } else {
-        qDebug() << "Oczekiwano 64 wartości, odebrano: " << dataList.size();
     }
 }
+
+
+
 
 
 void serialport::handlePortStatusChanged(Ui::MainWindow *ui, bool connected, const QString &portName) {

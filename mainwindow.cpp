@@ -36,6 +36,14 @@ MainWindow::MainWindow(QWidget *parent)
     setViewHandler->initializeLEDIndicator(ui);  ///< Inicjalizuje wskaźnik LED.
     Draw::initializeGraphicsScene(ui, scene, gridPixmapItem);  ///< Inicjalizuje scenę graficzną.
 
+
+    ui->FlagiComboBox->addItem("Czujnik 1");
+    ui->FlagiComboBox->addItem("Czujnik 2");
+    ui->FlagiComboBox->addItem("Czujnik 3");
+
+    // Połączenie sygnału zmiany indeksu z funkcją obsługującą wysyłanie flagi
+    connect(ui->FlagiComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onFlagChanged()));
+
     serialPortHandler->populateAvailablePorts(ui);  ///< Wypełnia listę dostępnych portów szeregowych.
 
     // Połączenie sygnałów i slotów
@@ -70,7 +78,10 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
     ui->graphicsView->fitInView(scene->sceneRect(), Qt::KeepAspectRatioByExpanding);
 }
 
-
+void MainWindow::onFlagChanged() {
+    // Wywołanie funkcji wysyłania flagi
+    serialPortHandler->sendFlag(ui);
+}
 
 /**
  * \brief Destruktor klasy MainWindow.

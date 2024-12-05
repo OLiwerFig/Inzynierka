@@ -21,6 +21,10 @@ public:
     void handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QGraphicsScene *scene, const QList<QByteArray> &values); // Ensure this matches the .cpp definition
     void handlePortStatusChanged(Ui::MainWindow *ui, bool connected, const QString &portName);
     void populateAvailablePorts(Ui::MainWindow *ui);
+    void sendFlag(Ui::MainWindow *ui);
+
+    QMap<char, QList<QList<int>>> sensorLastData;
+    char currentSensor = '\0';
 
 signals:
     void serialDataReceived(const QList<QByteArray> &data);

@@ -3,34 +3,58 @@
 
 #include <QGraphicsScene>
 #include <QGraphicsPixmapItem>
-#include <QPen>
-#include <QBrush>
-#include <QList>
-#include <QPointF>
-#include <QGraphicsEllipseItem>
-#include "ui_mainwindow.h"
 #include <Eigen/Dense>
+#include <QList>
+#include "ui_mainwindow.h"
 
+// Dodajemy deklaracje Qt Data Visualization
+#include <QtDataVisualization/Q3DScatter>
+#include <QtDataVisualization/Q3DSurface>
+#include <QtDataVisualization/QScatter3DSeries>
+#include <QtDataVisualization/QSurface3DSeries>
+#include <QtDataVisualization/QSurfaceDataProxy>
+#include <QtDataVisualization/QScatterDataProxy>
 
+QT_BEGIN_NAMESPACE
+class Q3DScatter;
+class Q3DSurface;
+QT_END_NAMESPACE
 
 class Draw {
 public:
-    // Funkcja inicjalizująca scenę graficzną
+    // Inicjalizacja sceny 2D
     static void initializeGraphicsScene(Ui::MainWindow *ui, QGraphicsScene *&scene, QGraphicsPixmapItem *&gridPixmapItem);
 
-    // Funkcja aktualizująca dane czujnika i rysująca macierz 8x8
+    // Aktualizacja danych i wyświetlanie macierzy 8x8 w 2D
     static void updateSensorData(Ui::MainWindow *ui, QGraphicsScene *scene, const QList<QList<int>> &sensorData);
 
-    // Funkcja aktualizująca etykiety QLabel dla kąta i powierzchni
+    // Aktualizacja etykiet (kąty, płaszczyzna)
     static void updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData);
 
-    // Funkcja obliczająca kąt patrzenia na płaszczyznę na podstawie danych czujnika
-    static double calculateViewingAngle(const QList<QList<int>> &sensorData);
+    // Debug
+    static void printMatrixToQDebug(const Eigen::MatrixXd &matrix);
 
-    // Funkcja obliczająca współczynniki płaszczyzny
-    static Eigen::Vector4d calculatePlaneCoefficients(const QList<QList<int>> &sensorData);
+    // Funkcja do wyświetlenia widoku 3D (drugi sposób wizualizacji)
+    static void show3DView(Ui::MainWindow *ui, const QList<QList<int>> &sensorData);
 
-    static void printMatrixToQDebug(const Eigen::MatrixXd& matrix);
+private:
+    struct PlaneParams {
+        double a,b,c,d;
+    };
+
+    struct FitResult {
+        PlaneParams plane;
+        Eigen::MatrixXd inlierCoords;
+        Eigen::VectorXd residuals;
+        QList<QList<int>> processedData;
+    };
+
+    static QList<QList<int>> rotate90Right(const QList<QList<int>> &original);
+    static QList<QList<int>> preprocessSensorData(const QList<QList<int>> &sensorData, int max_outliers=3);
+    static Eigen::MatrixXd calculateCoordinates(const QList<QList<int>> &sensorData);
+    static PlaneParams fitPlane(const Eigen::MatrixXd &coords);
+    static QList<int> identifyOutliers(const Eigen::MatrixXd &coords, const PlaneParams &plane, double threshold_factor=2.5);
+    static FitResult iterativePlaneFitting(const QList<QList<int>> &sensorData, int max_outliers=5, int max_iterations=20, double threshold_factor=2.5);
 };
 
 #endif // DRAW_H

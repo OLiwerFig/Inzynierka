@@ -31,6 +31,7 @@ private:
     QList<QPointF> pathPoints;
     QList<QGraphicsEllipseItem *> pathItems;
     QTranslator *translator;
+    void onFlagChanged();
     void resizeEvent(QResizeEvent *event) override;
 };
 
