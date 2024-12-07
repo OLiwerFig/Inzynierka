@@ -1,12 +1,8 @@
-/**
- * \file mainwindow.cpp
- * \brief Implementacja klasy MainWindow.
- */
-
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "draw.h"
 #include "serialport.h"
+#include "map.h"
 #include <QSerialPortInfo>
 #include <QGraphicsTextItem>
 #include <QGraphicsPixmapItem>
@@ -14,6 +10,7 @@
 #include <QResizeEvent>
 #include <QTranslator>
 #include <QLibraryInfo>
+#include <QTimer>
 
 /**
  * \brief Konstruktor klasy MainWindow.
@@ -27,8 +24,14 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , serialPortHandler(new serialport(this))
     , setViewHandler(new SetView(this))
+    , scene(nullptr)
+    , gridPixmapItem(nullptr)
+    , map(nullptr)
     , translator(new QTranslator(this))
+
 {
+
+
     ui->setupUi(this);
 
     setViewHandler->setIcons(ui);  ///< Ustawia ikony w interfejsie użytkownika.
@@ -36,6 +39,26 @@ MainWindow::MainWindow(QWidget *parent)
     setViewHandler->initializeLEDIndicator(ui);  ///< Inicjalizuje wskaźnik LED.
     Draw::initializeGraphicsScene(ui, scene, gridPixmapItem);  ///< Inicjalizuje scenę graficzną.
 
+    setFocusPolicy(Qt::StrongFocus);
+    ui->MapGraphicsView->setFocusPolicy(Qt::StrongFocus); //
+    connect(ui->upButton, &QPushButton::clicked, map, &Map::moveRobotUp);
+    connect(ui->downButton, &QPushButton::clicked, map, &Map::moveRobotDown);
+    connect(ui->leftButton, &QPushButton::clicked, map, &Map::moveRobotLeft);
+    connect(ui->rightButton, &QPushButton::clicked, map, &Map::moveRobotRight);
+
+
+
+
+    if (!ui->MapGraphicsView) {
+        qDebug() << "ui->MapGraphicsView jest nullptr!";
+        return;
+    }
+
+    map = new Map(ui->MapGraphicsView);
+    map->initializeMap("/Users/oliwerfigura/Desktop/Inzynierka/Inzynierka/obstacles.txt");
+
+
+    ui->MapGraphicsView->setMinimumSize(600, 600);
 
     ui->FlagiComboBox->addItem("Czujnik 1");
     ui->FlagiComboBox->addItem("Czujnik 2");
@@ -68,15 +91,53 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
 
-
-    // Próba otwarcia portu szeregowego przy starcie
     serialPortHandler->connectSerialPort(ui->comboBoxSerialPorts->currentText());
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
     QMainWindow::resizeEvent(event);
     ui->graphicsView->fitInView(scene->sceneRect(), Qt::KeepAspectRatioByExpanding);
+    if (map) {
+        map->scaleSceneToFitView();
+    }
 }
+
+
+void MainWindow::keyPressEvent(QKeyEvent *event) {
+    if (!map) return;
+
+    switch (event->key()) {
+    case Qt::Key_Up:
+    case Qt::Key_W:
+        map->moveRobotUp();
+        break;
+    case Qt::Key_Down:
+    case Qt::Key_S:
+        map->moveRobotDown();
+        break;
+    case Qt::Key_Left:
+    case Qt::Key_A:
+        map->moveRobotLeft();
+        break;
+    case Qt::Key_Right:
+    case Qt::Key_D:
+        map->moveRobotRight();
+        break;
+    }
+}
+
+void MainWindow::initializeMap() {
+    if (!ui->MapGraphicsView) {
+        qDebug() << "ui->MapGraphicsView nadal jest nullptr!";
+        return;
+    }
+
+    map = new Map(ui->MapGraphicsView);
+    qDebug() << "Obiekt Map zainicjalizowany!";
+    map->loadObstacles("/Users/oliwerfigura/Desktop/Inzynierka/Inzynierka/obstacles.txt");
+    qDebug() << "Przeszkody załadowane!";
+}
+
 
 void MainWindow::onFlagChanged() {
     // Wywołanie funkcji wysyłania flagi
@@ -90,5 +151,6 @@ void MainWindow::onFlagChanged() {
  */
 MainWindow::~MainWindow()
 {
+    delete map;
     delete ui;
 }

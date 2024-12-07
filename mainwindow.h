@@ -7,6 +7,7 @@
 #include <QTranslator>
 #include "serialport.h"
 #include "setview.h"
+#include "map.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -33,6 +34,11 @@ private:
     QTranslator *translator;
     void onFlagChanged();
     void resizeEvent(QResizeEvent *event) override;
+    void initializeMap();
+    Map *map;
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
 };
 
 #endif // MAINWINDOW_H

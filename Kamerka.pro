@@ -19,12 +19,14 @@ SOURCES += \
     draw.cpp \
     main.cpp \
     mainwindow.cpp \
+    map.cpp \
     serialport.cpp \
     setview.cpp
 
 HEADERS += \
     draw.h \
     mainwindow.h \
+    map.h \
     serialport.h \
     setview.h
 

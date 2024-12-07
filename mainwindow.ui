@@ -292,107 +292,11 @@ QPushButton#buttonConnect:pressed {
      </layout>
     </item>
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout_4" stretch="4,1,1">
+     <layout class="QVBoxLayout" name="verticalLayout_4" stretch="20,1,1">
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout">
+       <layout class="QVBoxLayout" name="verticalLayout" stretch="20,1,1,1,1">
         <item>
-         <widget class="QLabel" name="pwn_text_L">
-          <property name="font">
-           <font>
-            <family>Arial</family>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="styleSheet">
-           <string notr="true"/>
-          </property>
-          <property name="text">
-           <string>TextLabel</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QProgressBar" name="pwmLProgressBar">
-          <property name="autoFillBackground">
-           <bool>false</bool>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">QProgressBar {
-    border: 2px solid grey;
-    border-radius: 5px;
-    text-align: center;
-}
-
-QProgressBar::chunk {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 1, y2: 0,
-        stop: 0 #05B8CC, stop: 1 #3DCC3D
-    );
-    width: 20px;
-}
-</string>
-          </property>
-          <property name="maximum">
-           <number>400</number>
-          </property>
-          <property name="value">
-           <number>0</number>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignJustify|Qt::AlignVCenter</set>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="format">
-           <string>%p%</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="pwn_text_R">
-          <property name="font">
-           <font>
-            <family>Arial</family>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="text">
-           <string>TextLabel</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QProgressBar" name="pwmRProgressBar">
-          <property name="styleSheet">
-           <string notr="true">QProgressBar {
-    border: 2px solid grey;
-    border-radius: 5px;
-    text-align: center;
-}
-
-QProgressBar::chunk {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 1, y2: 0,
-        stop: 0 #05B8CC, stop: 1 #3DCC3D
-    );
-    width: 20px;
-}
-</string>
-          </property>
-          <property name="maximum">
-           <number>400</number>
-          </property>
-          <property name="value">
-           <number>0</number>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignJustify|Qt::AlignVCenter</set>
-          </property>
-          <property name="invertedAppearance">
-           <bool>false</bool>
-          </property>
-         </widget>
+         <widget class="QGraphicsView" name="MapGraphicsView"/>
         </item>
         <item>
          <widget class="QLabel" name="speed_text_L">
@@ -496,100 +400,34 @@ QProgressBar::chunk {
        </layout>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,4">
+       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0">
         <item>
-         <widget class="QLabel" name="actual_position">
-          <property name="font">
-           <font>
-            <family>Arial</family>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="styleSheet">
-           <string notr="true"/>
-          </property>
-          <property name="text">
-           <string>TextLabel</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
-          <item>
-           <widget class="QLabel" name="labelPosY">
-            <property name="font">
-             <font>
-              <family>Arial</family>
-              <pointsize>-1</pointsize>
-             </font>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">QLabel {
-    padding: 5px;
-    margin: 0px;
-    border: 2px solid #4F6F52;
-    border-radius: 5px;
-    background-color: white;
-    color: black; /* Kolor tekstu */
-    font-size: 16px; /* Większy rozmiar czcionki */
-}
-</string>
-            </property>
+         <layout class="QGridLayout" name="gridLayout">
+          <item row="0" column="1">
+           <widget class="QPushButton" name="rightButton">
             <property name="text">
-             <string>X</string>
+             <string>Righ</string>
             </property>
            </widget>
           </item>
-          <item>
-           <widget class="QLabel" name="labelPosX">
-            <property name="font">
-             <font>
-              <family>Arial</family>
-              <pointsize>-1</pointsize>
-             </font>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">QLabel {
-    padding: 5px;
-    margin: 0px;
-    border: 2px solid #4F6F52;
-    border-radius: 5px;
-    background-color: white;
-    color: black; /* Kolor tekstu */
-    font-size: 16px; /* Większy rozmiar czcionki */
-}
-</string>
-            </property>
+          <item row="0" column="0">
+           <widget class="QPushButton" name="leftButton">
             <property name="text">
-             <string>Y</string>
+             <string>Left</string>
             </property>
            </widget>
           </item>
-          <item>
-           <widget class="QLabel" name="labelTheta">
-            <property name="font">
-             <font>
-              <family>Arial</family>
-              <pointsize>-1</pointsize>
-             </font>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">QLabel {
-    padding: 5px;
-    margin: 0px;
-    border: 2px solid #4F6F52;
-    border-radius: 5px;
-    background-color: white;
-    color: black; /* Kolor tekstu */
-    font-size: 16px; /* Większy rozmiar czcionki */
-}
-</string>
-            </property>
-            <property name="lineWidth">
-             <number>1</number>
-            </property>
+          <item row="1" column="1">
+           <widget class="QPushButton" name="upButton">
             <property name="text">
-             <string>Theta</string>
+             <string>UP</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QPushButton" name="downButton">
+            <property name="text">
+             <string>Down</string>
             </property>
            </widget>
           </item>

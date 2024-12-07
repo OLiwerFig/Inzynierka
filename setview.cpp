@@ -107,10 +107,8 @@ void SetView::updateTexts(Ui::MainWindow *ui)
 {
     ui->speed_text_L->setText(QObject::tr("Prędkość lewego silnika"));
     ui->speed_text_R->setText(QObject::tr("Prędkość prawego silnika"));
-    ui->pwn_text_R->setText(QObject::tr("Wartość wypełnienia PWM prawego silnika"));
-    ui->pwn_text_L->setText(QObject::tr("Wartość wypełnienia PWM lewego silnika"));
+
     ui->actualTarget->setText(QObject::tr("Aktualny Target"));
-    ui->actual_position->setText(QObject::tr("Aktualna Pozycja"));
     ui->send_target->setText(QObject::tr("Wpisz target"));
     ui->buttonSendTarget->setText(QObject::tr("Send"));
     ui->statusLabel->setText(QObject::tr("Disconnected"));
