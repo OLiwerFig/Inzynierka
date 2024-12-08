@@ -23,7 +23,7 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout_8">
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout_6" stretch="1,9,1,1">
+     <layout class="QVBoxLayout" name="verticalLayout_6" stretch="1,15,1,1">
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_5" stretch="1,1">
         <item>
@@ -234,16 +234,94 @@ QPushButton#buttonConnect:pressed {
        </widget>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="0,2">
+       <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="1,10">
+        <property name="spacing">
+         <number>0</number>
+        </property>
         <item>
          <widget class="QPushButton" name="SendFlag">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton {
+    padding: 0px;
+    margin: 0px;
+    border: 2px solid #4F6F52;
+    border-radius: 5px;
+    background-color: white;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+QPushButton#languageButton[icon='pol'] {
+    background-image: url(:/images/pol.png);
+}
+
+QPushButton#languageButton[icon='eng'] {
+    background-image: url(:/images/ang.png);
+}
+
+QPushButton:pressed {
+    background-color: #4F6F52;
+}
+</string>
+          </property>
           <property name="text">
            <string>Send</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="FlagiComboBox"/>
+         <widget class="QComboBox" name="FlagiComboBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QComboBox {
+    border: 2px solid #4F6F52;
+    border-radius: 5px;
+    padding: 5px;
+    background-color: white;
+    color: black;
+    selection-background-color: #4CAF50;
+    selection-color: white;
+}
+
+QComboBox QAbstractItemView {
+    border: 2px solid #4F6F52;
+    background-color: white;
+    selection-background-color: #4CAF50;
+    selection-color: white;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left-width: 1px;
+    border-left-color: #4F6F52;
+    border-left-style: solid;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    background-color: #4F6F52;
+}
+
+QComboBox::down-arrow {
+    image: url(:/icons/down_arrow.png);
+    width: 10px;
+    height: 10px;
+}
+</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>

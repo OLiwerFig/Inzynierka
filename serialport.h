@@ -22,6 +22,7 @@ public:
     void handlePortStatusChanged(Ui::MainWindow *ui, bool connected, const QString &portName);
     void populateAvailablePorts(Ui::MainWindow *ui);
     void sendFlag(Ui::MainWindow *ui);
+    void sendMovementCommand(char command);
 
     QMap<char, QList<QList<int>>> sensorLastData;
     char currentSensor = '\0';

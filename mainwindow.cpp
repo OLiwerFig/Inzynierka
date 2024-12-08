@@ -26,8 +26,8 @@ MainWindow::MainWindow(QWidget *parent)
     , setViewHandler(new SetView(this))
     , scene(nullptr)
     , gridPixmapItem(nullptr)
-    , map(nullptr)
     , translator(new QTranslator(this))
+    , map(nullptr)
 
 {
 
@@ -39,12 +39,6 @@ MainWindow::MainWindow(QWidget *parent)
     setViewHandler->initializeLEDIndicator(ui);  ///< Inicjalizuje wskaźnik LED.
     Draw::initializeGraphicsScene(ui, scene, gridPixmapItem);  ///< Inicjalizuje scenę graficzną.
 
-    setFocusPolicy(Qt::StrongFocus);
-    ui->MapGraphicsView->setFocusPolicy(Qt::StrongFocus); //
-    connect(ui->upButton, &QPushButton::clicked, map, &Map::moveRobotUp);
-    connect(ui->downButton, &QPushButton::clicked, map, &Map::moveRobotDown);
-    connect(ui->leftButton, &QPushButton::clicked, map, &Map::moveRobotLeft);
-    connect(ui->rightButton, &QPushButton::clicked, map, &Map::moveRobotRight);
 
 
 
@@ -57,8 +51,39 @@ MainWindow::MainWindow(QWidget *parent)
     map = new Map(ui->MapGraphicsView);
     map->initializeMap("/Users/oliwerfigura/Desktop/Inzynierka/Inzynierka/obstacles.txt");
 
+    setFocusPolicy(Qt::StrongFocus);
+    ui->MapGraphicsView->setFocusPolicy(Qt::StrongFocus); //
+    connect(ui->upButton, &QPushButton::pressed, this, [this]() {
+        serialPortHandler->sendMovementCommand('F');
+    });
+    connect(ui->downButton, &QPushButton::pressed, this, [this]() {
+        serialPortHandler->sendMovementCommand('B');
+    });
+    connect(ui->leftButton, &QPushButton::pressed, this, [this]() {
+        serialPortHandler->sendMovementCommand('L');
+    });
+    connect(ui->rightButton, &QPushButton::pressed, this, [this]() {
+        serialPortHandler->sendMovementCommand('R');
+    });
+
+    // Połączenia dla puszczenia przycisków
+    connect(ui->upButton, &QPushButton::released, this, [this]() {
+        serialPortHandler->sendMovementCommand('S');
+    });
+    connect(ui->downButton, &QPushButton::released, this, [this]() {
+        serialPortHandler->sendMovementCommand('S');
+    });
+    connect(ui->leftButton, &QPushButton::released, this, [this]() {
+        serialPortHandler->sendMovementCommand('S');
+    });
+    connect(ui->rightButton, &QPushButton::released, this, [this]() {
+        serialPortHandler->sendMovementCommand('S');
+    });
+
+
 
     ui->MapGraphicsView->setMinimumSize(600, 600);
+    ui->graphicsView->setMinimumSize(600, 600);
 
     ui->FlagiComboBox->addItem("Czujnik 1");
     ui->FlagiComboBox->addItem("Czujnik 2");
@@ -103,6 +128,11 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
 }
 
 
+bool isUpPressed = false;
+bool isDownPressed = false;
+bool isLeftPressed = false;
+bool isRightPressed = false;
+
 void MainWindow::keyPressEvent(QKeyEvent *event) {
     if (!map) return;
 
@@ -110,19 +140,71 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
     case Qt::Key_Up:
     case Qt::Key_W:
         map->moveRobotUp();
+        serialPortHandler->sendMovementCommand('F'); // Forward
+        isUpPressed = true;
         break;
     case Qt::Key_Down:
     case Qt::Key_S:
         map->moveRobotDown();
+        serialPortHandler->sendMovementCommand('B'); // Backward
+        isDownPressed = true;
         break;
     case Qt::Key_Left:
     case Qt::Key_A:
         map->moveRobotLeft();
+        serialPortHandler->sendMovementCommand('L'); // Left
+        isLeftPressed = true;
         break;
     case Qt::Key_Right:
     case Qt::Key_D:
         map->moveRobotRight();
+        serialPortHandler->sendMovementCommand('R'); // Right
+        isRightPressed = true;
         break;
+    }
+}
+
+void MainWindow::keyReleaseEvent(QKeyEvent *event) {
+    switch (event->key()) {
+    case Qt::Key_Up:
+    case Qt::Key_W:
+        serialPortHandler->sendMovementCommand('S'); // Stop
+        isUpPressed = false;
+        break;
+    case Qt::Key_Down:
+    case Qt::Key_S:
+        serialPortHandler->sendMovementCommand('S'); // Stop
+        isDownPressed = false;
+        break;
+    case Qt::Key_Left:
+    case Qt::Key_A:
+        serialPortHandler->sendMovementCommand('S'); // Stop
+        isLeftPressed = false;
+        break;
+    case Qt::Key_Right:
+    case Qt::Key_D:
+        serialPortHandler->sendMovementCommand('S'); // Stop
+        isRightPressed = false;
+        break;
+    }
+}
+
+void MainWindow::timerEvent(QTimerEvent *event) {
+    if (isUpPressed) {
+        map->moveRobotUp();
+        serialPortHandler->sendMovementCommand('F'); // Forward
+    }
+    if (isDownPressed) {
+        map->moveRobotDown();
+        serialPortHandler->sendMovementCommand('B'); // Backward
+    }
+    if (isLeftPressed) {
+        map->moveRobotLeft();
+        serialPortHandler->sendMovementCommand('L'); // Left
+    }
+    if (isRightPressed) {
+        map->moveRobotRight();
+        serialPortHandler->sendMovementCommand('R'); // Right
     }
 }
 

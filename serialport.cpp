@@ -18,7 +18,7 @@ serialport::serialport(QObject *parent) : QObject(parent)
         emit serialDataReceived(data);
 
         // Debugowanie odebranych danych
-        qDebug() << "Odebrano dane:" << data;
+        //qDebug() << "Odebrano dane:" << data;
     });
 
     connect(serialPort, &QSerialPort::errorOccurred, this, [this](QSerialPort::SerialPortError error) {
@@ -27,6 +27,16 @@ serialport::serialport(QObject *parent) : QObject(parent)
             emit portStatusChanged(false, "");
         }
     });
+}
+
+void serialport::sendMovementCommand(char command) {
+    if (serialPort->isOpen()) {
+        QByteArray data;
+        data.append(command);
+        data.append('\n');
+        serialPort->write(data);
+        qDebug() << "Wysłano komendę ruchu:" << command;
+    }
 }
 
 void serialport::connectSerialPort(const QString &portName)
@@ -102,6 +112,14 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
 {
     for (const QByteArray &line : values) {
         QString trimmedLine = QString::fromUtf8(line).trimmed();
+
+
+
+        // Sprawdź czy to potwierdzenie komendy
+        if (trimmedLine.startsWith("CMD_")) {
+            qDebug() << "Otrzymano potwierdzenie:" << trimmedLine;
+            continue;
+        }
 
         if (trimmedLine == "A" || trimmedLine == "B" || trimmedLine == "C") {
             // Otrzymaliśmy informacje o tym, z którego czujnika będą następne dane

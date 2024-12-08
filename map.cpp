@@ -196,7 +196,7 @@ void Map::initializeMap(const QString &filePath) {
             connect(robotTimer, &QTimer::timeout, this, [this]() {
                 if (robotItem) {
                     QPointF pos = robotItem->scenePos();
-                    qDebug() << "Bieżąca pozycja robota:" << pos;
+                    //qDebug() << "Bieżąca pozycja robota:" << pos;
                 }
             });
             robotTimer->start(100);
