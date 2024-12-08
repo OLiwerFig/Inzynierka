@@ -26,6 +26,8 @@ public:
 
     QMap<char, QList<QList<int>>> sensorLastData;
     char currentSensor = '\0';
+    int currentSpeed = 400; // Domyślna prędkość
+    void setSpeed(int speed) { currentSpeed = speed; }
 
 signals:
     void serialDataReceived(const QList<QByteArray> &data);

@@ -36,6 +36,7 @@ private:
     void resizeEvent(QResizeEvent *event) override;
     void initializeMap();
     Map *map;
+    void onSpeedSliderChanged(int value);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

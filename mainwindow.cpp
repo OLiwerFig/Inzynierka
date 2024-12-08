@@ -89,6 +89,11 @@ MainWindow::MainWindow(QWidget *parent)
     ui->FlagiComboBox->addItem("Czujnik 2");
     ui->FlagiComboBox->addItem("Czujnik 3");
 
+    ui->horizontalSlider->setMinimum(0);
+    ui->horizontalSlider->setMaximum(1000);
+    ui->horizontalSlider->setValue(400); // wartość początkowa
+    ui->SpeedLabel->setText("Speed: 400");
+
     // Połączenie sygnału zmiany indeksu z funkcją obsługującą wysyłanie flagi
     connect(ui->FlagiComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onFlagChanged()));
 
@@ -101,9 +106,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->refreshButton, &QPushButton::clicked, this, [this]() {
         serialPortHandler->refreshConnection(ui);
     });
-    connect(ui->buttonSendTarget, &QPushButton::clicked, this, [this]() {
-        serialPortHandler->sendTargetCoordinates(ui);
-    });
+
     connect(serialPortHandler, &serialport::serialDataReceived, this, [this](const QList<QByteArray> &data) {
         serialPortHandler->handleSerialData(this, ui, scene, data);
     });
@@ -113,6 +116,12 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(ui->languageButton, &QPushButton::clicked, this, [this]() {
         setViewHandler->toggleLanguage(ui, translator, this);
+    });
+
+    connect(ui->horizontalSlider, &QSlider::valueChanged, this, [this](int value) {
+        qDebug() << "Slider zmieniony na:" << value;
+        ui->SpeedLabel->setText(QString("Speed: %1").arg(value));
+        serialPortHandler->setSpeed(value);
     });
 
 
@@ -206,6 +215,13 @@ void MainWindow::timerEvent(QTimerEvent *event) {
         map->moveRobotRight();
         serialPortHandler->sendMovementCommand('R'); // Right
     }
+}
+
+void MainWindow::onSpeedSliderChanged(int value) {
+    // Aktualizuj etykietę
+    ui->SpeedLabel->setText(QString("Speed: %1").arg(value));
+    // Aktualizuj prędkość w serialport handler
+    serialPortHandler->setSpeed(value);
 }
 
 void MainWindow::initializeMap() {

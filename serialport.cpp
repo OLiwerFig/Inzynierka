@@ -31,11 +31,17 @@ serialport::serialport(QObject *parent) : QObject(parent)
 
 void serialport::sendMovementCommand(char command) {
     if (serialPort->isOpen()) {
+        // Format: $CMD,SPEED#
         QByteArray data;
-        data.append(command);
+        data.append('$');  // Znacznik początku
+        data.append(command);  // Komenda ruchu (F/B/L/R/S)
+        data.append(',');
+        data.append(QString::number(currentSpeed).toUtf8());  // Prędkość
+        data.append('#');
         data.append('\n');
+
         serialPort->write(data);
-        qDebug() << "Wysłano komendę ruchu:" << command;
+        qDebug() << "Wysłano komendę:" << data;
     }
 }
 
@@ -82,22 +88,7 @@ void serialport::sendFlag(Ui::MainWindow *ui) {
 }
 
 void serialport::sendTargetCoordinates(Ui::MainWindow *ui) {
-    bool okX, okY;
-    float targetX = ui->lineEditTargetX->text().toFloat(&okX);
-    float targetY = ui->lineEditTargetY->text().toFloat(&okY);
 
-    if (okX && okY) {
-        QByteArray data;
-        QDataStream stream(&data, QIODevice::WriteOnly);
-        stream.setFloatingPointPrecision(QDataStream::SinglePrecision);
-        stream.setByteOrder(QDataStream::LittleEndian);
-
-        stream << targetX << targetY;
-        serialPort->write(data);
-        qDebug() << "Wysłano współrzędne: " << targetX << ", " << targetY;
-    } else {
-        qDebug() << "Nieprawidłowe współrzędne celu";
-    }
 }
 
 void serialport::populateAvailablePorts(Ui::MainWindow *ui) {
@@ -112,6 +103,38 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
 {
     for (const QByteArray &line : values) {
         QString trimmedLine = QString::fromUtf8(line).trimmed();
+
+        qDebug() << "Otrzymano linię:" << trimmedLine;
+
+        if (trimmedLine.startsWith("$PWM")) {
+            qDebug() << "Znaleziono dane PWM";
+            QStringList parts = trimmedLine.split(',');
+            qDebug() << "Części:" << parts;
+
+            if (parts.size() >= 3) {
+                // Usuń znaki $ i # z wartości
+                QString leftStr = parts[1];
+                QString rightStr = parts[2];
+                rightStr.remove('#');
+
+                bool okLeft, okRight;
+                float leftPWM = leftStr.toFloat(&okLeft);
+                float rightPWM = rightStr.toFloat(&okRight);
+
+                if (okLeft && okRight) {
+                    qDebug() << "Wartości PWM - Lewy:" << leftPWM << "Prawy:" << rightPWM;
+
+                    // Aktualizacja tekstów
+                    ui->speed_text_L->setText(QString("Left PWM: %1").arg(leftPWM));
+                    ui->speed_text_R->setText(QString("Right PWM: %1").arg(rightPWM));
+
+                    // Aktualizacja progress barów
+                    ui->speedLProgressBar->setValue(static_cast<int>(leftPWM));
+                    ui->speedRProgressBar->setValue(static_cast<int>(rightPWM));
+                }
+            }
+            continue;
+        }
 
 
 
