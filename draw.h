@@ -22,6 +22,18 @@ QT_END_NAMESPACE
 
 class Draw {
 public:
+
+    struct PlaneParams {
+        double a,b,c,d;
+        double azimuth_angle;  // Kąt w płaszczyźnie XZ (azymut)
+    };
+
+    struct FitResult {
+        PlaneParams plane;
+        Eigen::MatrixXd inlierCoords;
+        Eigen::VectorXd residuals;
+        QList<QList<int>> processedData;
+    };
     // Inicjalizacja sceny 2D
     static void initializeGraphicsScene(Ui::MainWindow *ui, QGraphicsScene *&scene, QGraphicsPixmapItem *&gridPixmapItem);
 
@@ -37,24 +49,20 @@ public:
     // Funkcja do wyświetlenia widoku 3D (drugi sposób wizualizacji)
     static void show3DView(Ui::MainWindow *ui, const QList<QList<int>> &sensorData);
 
+    static PlaneParams fitPlane(const Eigen::MatrixXd &coords);
+    static FitResult iterativePlaneFitting(const QList<QList<int>> &sensorData, int max_outliers=5, int max_iterations=20, double threshold_factor=2.5);
+
+        static QList<QList<int>> rotate90Right(const QList<QList<int>> &original);
+
 private:
-    struct PlaneParams {
-        double a,b,c,d;
-    };
 
-    struct FitResult {
-        PlaneParams plane;
-        Eigen::MatrixXd inlierCoords;
-        Eigen::VectorXd residuals;
-        QList<QList<int>> processedData;
-    };
 
-    static QList<QList<int>> rotate90Right(const QList<QList<int>> &original);
+
     static QList<QList<int>> preprocessSensorData(const QList<QList<int>> &sensorData, int max_outliers=3);
     static Eigen::MatrixXd calculateCoordinates(const QList<QList<int>> &sensorData);
-    static PlaneParams fitPlane(const Eigen::MatrixXd &coords);
+
     static QList<int> identifyOutliers(const Eigen::MatrixXd &coords, const PlaneParams &plane, double threshold_factor=2.5);
-    static FitResult iterativePlaneFitting(const QList<QList<int>> &sensorData, int max_outliers=5, int max_iterations=20, double threshold_factor=2.5);
+
 };
 
 #endif // DRAW_H

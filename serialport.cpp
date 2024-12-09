@@ -144,42 +144,76 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
             continue;
         }
 
+        // Sprawdź czy to potwierdzenie komendy
+        if (trimmedLine.startsWith("CMD_")) {
+            qDebug() << "Otrzymano potwierdzenie:" << trimmedLine;
+            continue;
+        }
+
         if (trimmedLine == "A" || trimmedLine == "B" || trimmedLine == "C") {
-            // Otrzymaliśmy informacje o tym, z którego czujnika będą następne dane
             currentSensor = trimmedLine.at(0).toLatin1();
+            qDebug() << "Zmieniono aktywny czujnik na:" << currentSensor;
         } else {
-            // Ta linia powinna zawierać 64 wartości pomiarowe
+            // Bezpieczne przetwarzanie danych z czujnika
             QStringList dataList = trimmedLine.split(' ', Qt::SkipEmptyParts);
-            if (dataList.size() == 64) {
-                QList<QList<int>> sensorData;
-                for (int i = 0; i < 8; ++i) {
+
+            // Sprawdź czy mamy dokładnie 64 wartości
+            if (dataList.size() != 64) {
+                qDebug() << "Błąd: Nieprawidłowa liczba wartości:" << dataList.size();
+                continue;
+            }
+
+            // Utwórz macierz 8x8
+            QList<QList<int>> sensorData;
+            bool conversionOk = true;
+
+            try {
+                for (int i = 0; i < 8 && conversionOk; ++i) {
                     QList<int> row;
-                    for (int j = 0; j < 8; ++j) {
-                        int value = dataList[i * 8 + j].toInt();
-                        row.append(value);
+                    for (int j = 0; j < 8 && conversionOk; ++j) {
+                        int index = i * 8 + j;
+                        if (index < dataList.size()) {
+                            bool ok;
+                            int value = dataList[index].toInt(&ok);
+                            if (!ok) {
+                                qDebug() << "Błąd konwersji wartości:" << dataList[index];
+                                conversionOk = false;
+                                break;
+                            }
+                            row.append(value);
+                        } else {
+                            qDebug() << "Błąd: Indeks poza zakresem:" << index;
+                            conversionOk = false;
+                            break;
+                        }
                     }
-                    sensorData.append(row);
+                    if (conversionOk) {
+                        sensorData.append(row);
+                    }
                 }
 
-                // Zapisz otrzymane dane w mapie
-                sensorLastData[currentSensor] = sensorData;
+                if (conversionOk && sensorData.size() == 8 && sensorData[0].size() == 8) {
+                    // Zapisz dane w mapie
+                    sensorLastData[currentSensor] = sensorData;
 
-                // Sprawdź, który czujnik jest obecnie wybrany w QComboBox
-                QString selected = ui->FlagiComboBox->currentText();
-                char selectedChar = '\0';
-                if (selected == "Czujnik 1") selectedChar = 'A';
-                else if (selected == "Czujnik 2") selectedChar = 'B';
-                else if (selected == "Czujnik 3") selectedChar = 'C';
+                    // Sprawdź aktywny czujnik
+                    QString selected = ui->FlagiComboBox->currentText();
+                    char selectedChar = '\0';
+                    if (selected == "Czujnik 1") selectedChar = 'A';
+                    else if (selected == "Czujnik 2") selectedChar = 'B';
+                    else if (selected == "Czujnik 3") selectedChar = 'C';
 
-                // Jeśli aktualnie wybrany czujnik to ten, z którego właśnie przyszły dane - wyświetl je
-                if (selectedChar == currentSensor) {
-                    QMetaObject::invokeMethod(mainWindow, [ui, scene, sensorData]() {
-                            Draw::updateSensorData(ui, scene, sensorData);
-                        }, Qt::QueuedConnection);
+                    // Aktualizuj widok tylko jeśli to aktywny czujnik
+                    if (selectedChar == currentSensor) {
+                        QMetaObject::invokeMethod(mainWindow, [ui, scene, sensorData]() {
+                                Draw::updateSensorData(ui, scene, sensorData);
+                            }, Qt::QueuedConnection);
+                    }
+                } else {
+                    qDebug() << "Błąd: Nieprawidłowy format danych czujnika";
                 }
-
-            } else {
-                qDebug() << "Oczekiwano 64 wartości, odebrano: " << dataList.size();
+            } catch (const std::exception& e) {
+                qDebug() << "Błąd podczas przetwarzania danych:" << e.what();
             }
         }
     }

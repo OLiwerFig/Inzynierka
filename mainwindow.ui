@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1081</width>
-    <height>732</height>
+    <width>1524</width>
+    <height>796</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,24 +21,26 @@
 }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout_8">
+   <layout class="QHBoxLayout" name="horizontalLayout_2">
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout_6" stretch="1,15,1,1">
-      <item>
-       <layout class="QVBoxLayout" name="verticalLayout_5" stretch="1,1">
+     <layout class="QGridLayout" name="gridLayout_2" columnstretch="3,1,2">
+      <item row="0" column="0">
+       <layout class="QVBoxLayout" name="verticalLayout_6" stretch="1,15,1">
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,6,1">
-          <item>
-           <widget class="QLabel" name="ledIndicator">
-            <property name="text">
-             <string/>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="statusLabel">
-            <property name="styleSheet">
-             <string notr="true">QLabel#statusLabel {
+         <layout class="QGridLayout" name="gridLayout_3" rowminimumheight="1,1">
+          <item row="0" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,6,1">
+            <item>
+             <widget class="QLabel" name="ledIndicator">
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="statusLabel">
+              <property name="styleSheet">
+               <string notr="true">QLabel#statusLabel {
     border: 2px solid #4F6F52; 
     border-radius: 5px;
     padding: 5px;
@@ -56,22 +58,22 @@ QLabel#statusLabel[connected=&quot;false&quot;] {
     font-weight: bold;
 }
 </string>
-            </property>
-            <property name="text">
-             <string/>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="refreshButton">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">QPushButton {
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="refreshButton">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">QPushButton {
     padding: 0px;
     margin: 0px;
     border: 2px solid #4F6F52;
@@ -86,24 +88,166 @@ QPushButton#refreshButton:pressed {
     background-color: #4F6F52;
 }
 </string>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="1" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,6,1">
+            <property name="spacing">
+             <number>-1</number>
             </property>
-            <property name="text">
-             <string/>
+            <property name="sizeConstraint">
+             <enum>QLayout::SetDefaultConstraint</enum>
             </property>
-           </widget>
+            <item>
+             <widget class="QPushButton" name="languageButton">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">QPushButton {
+    padding: 0px;
+    margin: 0px;
+    border: 2px solid #4F6F52;
+    border-radius: 5px;
+    background-color: white;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+QPushButton#languageButton[icon='pol'] {
+    background-image: url(:/images/pol.png);
+}
+
+QPushButton#languageButton[icon='eng'] {
+    background-image: url(:/images/ang.png);
+}
+
+QPushButton:pressed {
+    background-color: #4F6F52;
+}
+</string>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="comboBoxSerialPorts">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">QComboBox {
+    border: 2px solid #4F6F52;
+    border-radius: 5px;
+    padding: 5px;
+    background-color: white;
+    color: black;
+    selection-background-color: #4CAF50;
+    selection-color: white;
+}
+
+QComboBox QAbstractItemView {
+    border: 2px solid #4F6F52;
+    background-color: white;
+    selection-background-color: #4CAF50;
+    selection-color: white;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left-width: 1px;
+    border-left-color: #4F6F52;
+    border-left-style: solid;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    background-color: #4F6F52;
+}
+
+QComboBox::down-arrow {
+    image: url(:/icons/down_arrow.png);
+    width: 10px;
+    height: 10px;
+}
+</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonConnect">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">QPushButton {
+    padding: 0px;
+    margin: 0px;
+    border: 2px solid #4F6F52;
+    border-radius: 5px;
+    background-color: white;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+QPushButton#buttonConnect {
+    background-color: white;
+    border: 2px solid #4F6F52;
+    border-radius: 5px;
+}
+
+QPushButton#buttonConnect:pressed {
+    background-color: #4F6F52;
+}
+</string>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,6,0">
-          <property name="spacing">
-           <number>-1</number>
+         <widget class="QGraphicsView" name="graphicsView">
+          <property name="styleSheet">
+           <string notr="true">QGraphicsView {
+    border: 2px solid #4F6F52; /* Kolor ramki pasujący do reszty */
+    border-radius: 5px; /* Zaokrąglone rogi */
+    background-color: white; /* Jasnozielone tło */
+}
+</string>
           </property>
-          <property name="sizeConstraint">
-           <enum>QLayout::SetDefaultConstraint</enum>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="2,10">
+          <property name="spacing">
+           <number>0</number>
           </property>
           <item>
-           <widget class="QPushButton" name="languageButton">
+           <widget class="QPushButton" name="autoNavButton">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -136,12 +280,18 @@ QPushButton:pressed {
 </string>
             </property>
             <property name="text">
-             <string/>
+             <string>Send</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QComboBox" name="comboBoxSerialPorts">
+           <widget class="QComboBox" name="FlagiComboBox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="styleSheet">
              <string notr="true">QComboBox {
     border: 2px solid #4F6F52;
@@ -181,171 +331,12 @@ QComboBox::down-arrow {
             </property>
            </widget>
           </item>
-          <item>
-           <widget class="QPushButton" name="buttonConnect">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">QPushButton {
-    padding: 0px;
-    margin: 0px;
-    border: 2px solid #4F6F52;
-    border-radius: 5px;
-    background-color: white;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-}
-
-QPushButton#buttonConnect {
-    background-color: white;
-    border: 2px solid #4F6F52;
-    border-radius: 5px;
-}
-
-QPushButton#buttonConnect:pressed {
-    background-color: #4F6F52;
-}
-</string>
-            </property>
-            <property name="text">
-             <string/>
-            </property>
-           </widget>
-          </item>
          </layout>
         </item>
        </layout>
       </item>
-      <item>
-       <widget class="QGraphicsView" name="graphicsView">
-        <property name="styleSheet">
-         <string notr="true">QGraphicsView {
-    border: 2px solid #4F6F52; /* Kolor ramki pasujący do reszty */
-    border-radius: 5px; /* Zaokrąglone rogi */
-    background-color: white; /* Jasnozielone tło */
-}
-</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="1,10">
-        <property name="spacing">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QPushButton" name="SendFlag">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">QPushButton {
-    padding: 0px;
-    margin: 0px;
-    border: 2px solid #4F6F52;
-    border-radius: 5px;
-    background-color: white;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-}
-
-QPushButton#languageButton[icon='pol'] {
-    background-image: url(:/images/pol.png);
-}
-
-QPushButton#languageButton[icon='eng'] {
-    background-image: url(:/images/ang.png);
-}
-
-QPushButton:pressed {
-    background-color: #4F6F52;
-}
-</string>
-          </property>
-          <property name="text">
-           <string>Send</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QComboBox" name="FlagiComboBox">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">QComboBox {
-    border: 2px solid #4F6F52;
-    border-radius: 5px;
-    padding: 5px;
-    background-color: white;
-    color: black;
-    selection-background-color: #4CAF50;
-    selection-color: white;
-}
-
-QComboBox QAbstractItemView {
-    border: 2px solid #4F6F52;
-    background-color: white;
-    selection-background-color: #4CAF50;
-    selection-color: white;
-}
-
-QComboBox::drop-down {
-    subcontrol-origin: padding;
-    subcontrol-position: top right;
-    width: 20px;
-    border-left-width: 1px;
-    border-left-color: #4F6F52;
-    border-left-style: solid;
-    border-top-right-radius: 5px;
-    border-bottom-right-radius: 5px;
-    background-color: #4F6F52;
-}
-
-QComboBox::down-arrow {
-    image: url(:/icons/down_arrow.png);
-    width: 10px;
-    height: 10px;
-}
-</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="1,2,1">
-        <item>
-         <widget class="QLabel" name="label">
-          <property name="styleSheet">
-           <string notr="true">QLabel {
-    padding: 5px;
-    margin: 0px;
-    border: 2px solid #4F6F52;
-    border-radius: 5px;
-    background-color: white;
-    color: black; 
-    font-size: 16px; 
-}
-</string>
-          </property>
-          <property name="text">
-           <string>TextLabel</string>
-          </property>
-         </widget>
-        </item>
+      <item row="0" column="1">
+       <layout class="QVBoxLayout" name="verticalLayout_7" stretch="1,10,1">
         <item>
          <widget class="QLabel" name="SurfaceLabel">
           <property name="styleSheet">
@@ -384,170 +375,10 @@ QComboBox::down-arrow {
           </property>
          </widget>
         </item>
-       </layout>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <layout class="QVBoxLayout" name="verticalLayout_4" stretch="20,1,1">
-      <item>
-       <layout class="QVBoxLayout" name="verticalLayout" stretch="20,1,1,1,1">
         <item>
-         <widget class="QGraphicsView" name="MapGraphicsView"/>
-        </item>
-        <item>
-         <widget class="QLabel" name="speed_text_L">
-          <property name="font">
-           <font>
-            <family>Arial</family>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="text">
-           <string>TextLabel</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QProgressBar" name="speedLProgressBar">
-          <property name="autoFillBackground">
-           <bool>false</bool>
-          </property>
+         <widget class="QLabel" name="label">
           <property name="styleSheet">
-           <string notr="true">QProgressBar {
-    border: 2px solid grey;
-    border-radius: 5px;
-    text-align: center;
-}
-
-QProgressBar::chunk {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 1, y2: 0,
-        stop: 0 #05B8CC, stop: 1 #3DCC3D
-    );
-    width: 20px;
-}
-</string>
-          </property>
-          <property name="maximum">
-           <number>1000</number>
-          </property>
-          <property name="value">
-           <number>0</number>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignJustify|Qt::AlignVCenter</set>
-          </property>
-          <property name="textVisible">
-           <bool>true</bool>
-          </property>
-          <property name="invertedAppearance">
-           <bool>false</bool>
-          </property>
-          <property name="textDirection">
-           <enum>QProgressBar::TopToBottom</enum>
-          </property>
-          <property name="format">
-           <string>%p%</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="speed_text_R">
-          <property name="font">
-           <font>
-            <family>Arial</family>
-            <pointsize>18</pointsize>
-           </font>
-          </property>
-          <property name="text">
-           <string>TextLabel</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QProgressBar" name="speedRProgressBar">
-          <property name="styleSheet">
-           <string notr="true">QProgressBar {
-    border: 2px solid grey;
-    border-radius: 5px;
-    text-align: center;
-}
-
-QProgressBar::chunk {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 1, y2: 0,
-        stop: 0 #05B8CC, stop: 1 #3DCC3D
-    );
-    width: 20px;
-}
-</string>
-          </property>
-          <property name="maximum">
-           <number>1000</number>
-          </property>
-          <property name="value">
-           <number>0</number>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignJustify|Qt::AlignVCenter</set>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0">
-        <item>
-         <layout class="QGridLayout" name="gridLayout">
-          <item row="0" column="0" rowspan="3">
-           <widget class="QPushButton" name="leftButton">
-            <property name="text">
-             <string>Left</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QPushButton" name="downButton">
-            <property name="text">
-             <string>Down</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="2" rowspan="3">
-           <widget class="QPushButton" name="rightButton">
-            <property name="text">
-             <string>Righ</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1" rowspan="2">
-           <widget class="QPushButton" name="upButton">
-            <property name="text">
-             <string>UP</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1">
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0">
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,2">
-            <item>
-             <widget class="QLabel" name="SpeedLabel">
-              <property name="font">
-               <font>
-                <family>Arial</family>
-                <pointsize>-1</pointsize>
-               </font>
-              </property>
-              <property name="styleSheet">
-               <string notr="true">QLabel {
+           <string notr="true">QLabel {
     padding: 5px;
     margin: 0px;
     border: 2px solid #4F6F52;
@@ -557,18 +388,239 @@ QProgressBar::chunk {
     font-size: 16px; 
 }
 </string>
-              </property>
+          </property>
+          <property name="text">
+           <string>TextLabel</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="0" column="2">
+       <layout class="QVBoxLayout" name="verticalLayout_4" stretch="20,1,1">
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout" stretch="15,1,1,1,1">
+          <item>
+           <widget class="QGraphicsView" name="MapGraphicsView"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="speed_text_L">
+            <property name="font">
+             <font>
+              <family>Arial</family>
+              <pointsize>18</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QProgressBar" name="speedLProgressBar">
+            <property name="autoFillBackground">
+             <bool>false</bool>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QProgressBar {
+    border: 2px solid grey;
+    border-radius: 5px;
+    text-align: center;
+}
+
+QProgressBar::chunk {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 #05B8CC, stop: 1 #3DCC3D
+    );
+    width: 20px;
+}
+</string>
+            </property>
+            <property name="maximum">
+             <number>1000</number>
+            </property>
+            <property name="value">
+             <number>0</number>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignJustify|Qt::AlignVCenter</set>
+            </property>
+            <property name="textVisible">
+             <bool>true</bool>
+            </property>
+            <property name="invertedAppearance">
+             <bool>false</bool>
+            </property>
+            <property name="textDirection">
+             <enum>QProgressBar::TopToBottom</enum>
+            </property>
+            <property name="format">
+             <string>%p%</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="speed_text_R">
+            <property name="font">
+             <font>
+              <family>Arial</family>
+              <pointsize>18</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QProgressBar" name="speedRProgressBar">
+            <property name="styleSheet">
+             <string notr="true">QProgressBar {
+    border: 2px solid grey;
+    border-radius: 5px;
+    text-align: center;
+}
+
+QProgressBar::chunk {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 #05B8CC, stop: 1 #3DCC3D
+    );
+    width: 20px;
+}
+</string>
+            </property>
+            <property name="maximum">
+             <number>1000</number>
+            </property>
+            <property name="value">
+             <number>0</number>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignJustify|Qt::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0">
+          <item>
+           <layout class="QGridLayout" name="gridLayout">
+            <item row="0" column="0" rowspan="3">
+             <widget class="QPushButton" name="leftButton">
               <property name="text">
-               <string/>
+               <string>Left</string>
               </property>
              </widget>
             </item>
-            <item>
-             <widget class="QSlider" name="horizontalSlider">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
+            <item row="2" column="1">
+             <widget class="QPushButton" name="downButton">
+              <property name="text">
+               <string>Down</string>
               </property>
              </widget>
+            </item>
+            <item row="0" column="2" rowspan="3">
+             <widget class="QPushButton" name="rightButton">
+              <property name="text">
+               <string>Righ</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1" rowspan="2">
+             <widget class="QPushButton" name="upButton">
+              <property name="text">
+               <string>UP</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0">
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,2">
+              <item>
+               <widget class="QLabel" name="SpeedLabel">
+                <property name="font">
+                 <font>
+                  <family>Arial</family>
+                  <pointsize>-1</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QLabel {
+    padding: 5px;
+    margin: 0px;
+    border: 2px solid #4F6F52;
+    border-radius: 5px;
+    background-color: white;
+    color: black; 
+    font-size: 16px; 
+}
+</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSlider" name="horizontalSlider">
+                <property name="styleSheet">
+                 <string notr="true">QSlider {
+    background: transparent;
+}
+
+QSlider::groove:horizontal {
+    border: 1px solid #4F6F52;
+    height: 8px;
+    background: #E0E0E0;
+    border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 1,
+        stop: 0 #05B8CC, stop: 1 #3DCC3D
+    );
+    border: 1px solid #4F6F52;
+    width: 16px;
+    height: 16px;
+    margin: -4px 0; /* Pozycjonowanie uchwytu */
+    border-radius: 8px;
+}
+
+QSlider::sub-page:horizontal {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 #05B8CC, stop: 1 #3DCC3D
+    );
+    border: 1px solid #4F6F52;
+    height: 8px;
+    border-radius: 4px;
+}
+
+QSlider::add-page:horizontal {
+    background: #E0E0E0;
+    border: 1px solid #4F6F52;
+    height: 8px;
+    border-radius: 4px;
+}
+</string>
+                </property>
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </item>
            </layout>
           </item>
@@ -585,7 +637,7 @@ QProgressBar::chunk {
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1081</width>
+     <width>1524</width>
      <height>24</height>
     </rect>
    </property>

@@ -8,6 +8,7 @@
 #include "serialport.h"
 #include "setview.h"
 #include "map.h"
+#include "autonomousnav.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -42,6 +43,7 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void timerEvent(QTimerEvent *event) override;
+    AutonomousNav *autoNav;
 };
 
 #endif // MAINWINDOW_H

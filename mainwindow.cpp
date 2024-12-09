@@ -124,6 +124,18 @@ MainWindow::MainWindow(QWidget *parent)
         serialPortHandler->setSpeed(value);
     });
 
+    autoNav = new AutonomousNav(serialPortHandler, this);
+
+    connect(ui->autoNavButton, &QPushButton::clicked, this, [this]() {
+        static bool isActive = false;
+        isActive = !isActive;
+        if (isActive) {
+            autoNav->startNavigation();
+        } else {
+            autoNav->stopNavigation();
+        }
+    });
+
 
     serialPortHandler->connectSerialPort(ui->comboBoxSerialPorts->currentText());
 }

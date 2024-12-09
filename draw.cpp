@@ -6,6 +6,7 @@
 #include <QGraphicsTextItem>
 #include <QPen>
 #include <QBrush>
+#include "multiplanedetector.h"
 
 #define PI 3.14159265
 
@@ -42,31 +43,20 @@ void Draw::printMatrixToQDebug(const Eigen::MatrixXd &matrix) {
     }
 }
 
-QList<QList<int>> Draw::rotate90Right(const QList<QList<int>> &original) {
-    QList<QList<int>> rotated;
-    rotated.resize(8);
-    for (int i = 0; i < 8; i++) {
-        rotated[i].resize(8);
-    }
 
-    for (int i = 0; i < 8; i++) {
-        for (int j = 0; j < 8; j++) {
-            rotated[i][j] = original[7 - j][i];
-        }
-    }
-
-    return rotated;
-}
 
 static double neighborMean(const QList<QList<int>> &data, int i, int j) {
     double sum = 0.0;
     int count = 0;
+    int rows = data.size();
+    int cols = data[0].size();
+
     for (int di = -1; di <= 1; di++) {
         for (int dj = -1; dj <= 1; dj++) {
             if (di == 0 && dj == 0) continue;
             int ni = i + di;
             int nj = j + dj;
-            if (ni >= 0 && ni < 8 && nj >= 0 && nj < 8) {
+            if (ni >= 0 && ni < rows && nj >= 0 && nj < cols) {
                 sum += data[ni][nj];
                 count++;
             }
@@ -76,12 +66,89 @@ static double neighborMean(const QList<QList<int>> &data, int i, int j) {
     return data[i][j];
 }
 
+Eigen::MatrixXd Draw::calculateCoordinates(const QList<QList<int>> &sensorData) {
+    if (sensorData.isEmpty()) {
+        throw std::runtime_error("Empty sensor data");
+    }
+
+    int rows = sensorData.size();
+    int cols = sensorData[0].size();
+    int total_points = rows * cols;
+
+    qDebug() << "Calculating coordinates for" << rows << "x" << cols << "data";
+
+    // Sprawdź czy każdy wiersz ma tę samą długość
+    for (const auto& row : sensorData) {
+        if (row.size() != cols) {
+            throw std::runtime_error("Irregular data dimensions");
+        }
+    }
+
+    Eigen::MatrixXd coords(total_points, 3);
+
+    // Znajdź początkowy indeks dla tablicy kątów
+    int startRow = 0;
+    if (rows < 8) {
+        // Jeśli mamy segment danych, ustal odpowiedni początek w tablicy kątów
+        for (int i = 0; i < 8 - rows + 1; i++) {
+            bool match = true;
+            for (int j = 0; j < rows; j++) {
+                for (int k = 0; k < cols; k++) {
+                    if (k >= 8) continue;
+                    double value1 = sensorData[j][k];
+                    double value2 = rotatedAnglesX[i + j][k];
+                    if (std::abs(value1 - value2) > 1000) { // Duża różnica wskazuje na brak dopasowania
+                        match = false;
+                        break;
+                    }
+                }
+                if (!match) break;
+            }
+            if (match) {
+                startRow = i;
+                break;
+            }
+        }
+    }
+
+    int index = 0;
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            // Użyj odpowiednich indeksów dla tablicy kątów
+            int angleRow = startRow + i;
+            int angleCol = j;
+
+            // Zabezpiecz przed wyjściem poza zakres tablicy kątów
+            if (angleRow >= 8 || angleCol >= 8) {
+                qDebug() << "Warning: Using boundary angles for point" << i << j;
+                angleRow = std::min(angleRow, 7);
+                angleCol = std::min(angleCol, 7);
+            }
+
+            double d_value = sensorData[i][j];
+            double elev = rotatedAnglesX[angleRow][angleCol] * PI / 180.0;
+            double azim = rotatedAnglesZ[angleRow][angleCol] * PI / 180.0;
+
+            coords(index, 0) = d_value * std::cos(elev) * std::sin(azim);
+            coords(index, 1) = d_value * std::sin(elev);
+            coords(index, 2) = d_value * std::cos(elev) * std::cos(azim);
+            index++;
+        }
+    }
+
+    qDebug() << "Successfully created coordinate matrix with" << coords.rows() << "points";
+    return coords;
+}
+
 QList<QList<int>> Draw::preprocessSensorData(const QList<QList<int>> &sensorData, int max_outliers) {
     QList<QList<int>> data = sensorData;
     QList<QPair<int,int>> outlierIndices;
 
-    for (int i = 0; i < 8; i++) {
-        for (int j = 0; j < 8; j++) {
+    int rows = data.size();
+    int cols = data[0].size();
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
             double current_value = data[i][j];
             double nm = neighborMean(data, i, j);
             if (nm > 0 && current_value > 5.0 * nm) {
@@ -100,30 +167,6 @@ QList<QList<int>> Draw::preprocessSensorData(const QList<QList<int>> &sensorData
     }
 
     return data;
-}
-
-Eigen::MatrixXd Draw::calculateCoordinates(const QList<QList<int>> &sensorData) {
-    Eigen::MatrixXd coords(64,3);
-    int index = 0;
-    for (int i = 0; i < 8; i++) {
-        for (int j = 0; j < 8; j++) {
-            double d_value = sensorData[i][j];
-            // konwersja na radiany
-            double elev = rotatedAnglesX[i][j]*PI/180.0;
-            double azim = rotatedAnglesZ[i][j]*PI/180.0;
-
-            double x_val = d_value * std::cos(elev) * std::sin(azim);
-            double y_val = d_value * std::sin(elev);
-            double z_val = d_value * std::cos(elev) * std::cos(azim);
-
-            coords(index,0)=x_val;
-            coords(index,1)=y_val;
-            coords(index,2)=z_val;
-            index++;
-        }
-    }
-
-    return coords;
 }
 
 Draw::PlaneParams Draw::fitPlane(const Eigen::MatrixXd &coords) {
@@ -148,7 +191,6 @@ Draw::PlaneParams Draw::fitPlane(const Eigen::MatrixXd &coords) {
         S_xz, S_yz, S_zz;
 
     Eigen::Vector3d k(S_x1, S_y1, S_z1);
-
     Eigen::Matrix3d M_prime = M - (k * k.transpose()) / Np;
 
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(M_prime);
@@ -157,28 +199,39 @@ Draw::PlaneParams Draw::fitPlane(const Eigen::MatrixXd &coords) {
 
     int idx_min = 0;
     double min_val = eigvals(0);
-    for (int i=1;i<3;i++){
-        if (eigvals(i)<min_val) {
+    for (int i=1; i<3; i++) {
+        if (eigvals(i) < min_val) {
             min_val = eigvals(i);
             idx_min = i;
         }
     }
 
+    // Wektor normalny do płaszczyzny
     Eigen::Vector3d normal_vector = eigvecs.col(idx_min);
+
+    // Normalizacja wektora normalnego
+    double norm = normal_vector.norm();
+    if (norm > 1e-12) {
+        normal_vector /= norm;
+    } else {
+        normal_vector = Eigen::Vector3d(0, 0, 1);
+    }
+
+    // Współczynniki płaszczyzny
     double a = normal_vector(0);
     double b = normal_vector(1);
     double c = normal_vector(2);
+    double d = -(a * S_x1 + b * S_y1 + c * S_z1) / Np;
 
-    double d = - (a * S_x1 + b * S_y1 + c * S_z1) / Np;
+    // Oblicz kąt azymutu (w płaszczyźnie XZ)
+    // atan2 zwróci kąt w zakresie (-π, π)
+    double azimuth_angle = std::atan2(a, c) * 180.0 / M_PI;
 
-    double norm = sqrt(a*a + b*b + c*c);
-    if (norm > 1e-12) {
-        a /= norm; b/= norm; c/= norm; d/= norm;
-    } else {
-        a=0; b=0; c=1; d=0;
-    }
+    // Zapisz kąt azymutu jako dodatkową informację
+    qDebug() << "Fitted plane with azimuth angle:" << azimuth_angle << "degrees";
+    qDebug() << "Normal vector:" << a << b << c;
 
-    PlaneParams p{a,b,c,d};
+    PlaneParams p{a,b,c,d, azimuth_angle};  // Dodaj kąt do struktury
     return p;
 }
 
@@ -205,105 +258,157 @@ QList<int> Draw::identifyOutliers(const Eigen::MatrixXd &coords, const PlanePara
 }
 
 Draw::FitResult Draw::iterativePlaneFitting(const QList<QList<int>> &sensorData, int max_outliers, int max_iterations, double threshold_factor) {
-    // Preprocessing
-    QList<QList<int>> processed = preprocessSensorData(sensorData,3);
+    qDebug() << "Starting plane fitting with" << sensorData.size() << "rows and"
+             << (sensorData.isEmpty() ? 0 : sensorData[0].size()) << "columns";
 
-    Eigen::MatrixXd coords_all = calculateCoordinates(processed);
-    Eigen::MatrixXd coords = coords_all;
+    // Sprawdź minimalne wymagania dla danych
+    if (sensorData.size() < 4 || sensorData[0].size() < 4) {
+        throw std::runtime_error("Insufficient data points for plane fitting");
+    }
 
-    int iteration=0;
-    int total_outliers=0;
+    // Preprocessing z walidacją
+    QList<QList<int>> processed = preprocessSensorData(sensorData, 3);
+    if (processed.size() < 4 || processed[0].size() < 4) {
+        throw std::runtime_error("Insufficient valid data points after preprocessing");
+    }
 
-    PlaneParams plane;
-    Eigen::VectorXd residuals;
+    try {
+        Eigen::MatrixXd coords_all = calculateCoordinates(processed);
+        if (coords_all.rows() < 4) {
+            throw std::runtime_error("Not enough points for plane fitting");
+        }
 
-    while (iteration < max_iterations) {
-        plane = fitPlane(coords);
+        Eigen::MatrixXd coords = coords_all;
+        PlaneParams plane;
+        Eigen::VectorXd residuals;
+        int iteration = 0;
+        int total_outliers = 0;
 
-        QList<int> outlierIndices = identifyOutliers(coords, plane, threshold_factor);
-        if (outlierIndices.isEmpty()) {
-            qDebug()<<"No outliers detected in iteration"<<iteration;
-            break;
-        } else {
-            int num_new_outliers = outlierIndices.size();
-            total_outliers += num_new_outliers;
-            if (total_outliers > max_outliers) {
-                int num_allowed = max_outliers - (total_outliers - num_new_outliers);
-                if (num_allowed < 0) num_allowed=0;
-                if (num_allowed > 0) {
-                    qDebug()<<"Iteration"<<iteration<<": Detected"<<num_new_outliers<<"outlier(s). Only excluding"<<num_allowed<<"more outlier(s).";
-                    QSet<int> outSet;
-                    for (int q=0; q<num_allowed; q++) outSet.insert(outlierIndices[q]);
+        while (iteration < max_iterations && coords.rows() >= 4) {
+            qDebug() << "Iteration" << iteration << "with" << coords.rows() << "points";
 
-                    Eigen::MatrixXd newCoords(coords.rows()-num_allowed,3);
-                    int idxNew=0;
-                    for (int r=0;r<coords.rows();r++){
-                        if (!outSet.contains(r)) {
-                            newCoords.row(idxNew++)=coords.row(r);
-                        }
-                    }
-                    coords = newCoords;
-                } else {
-                    qDebug()<<"No more outliers allowed to remove.";
+            try {
+                plane = fitPlane(coords);
+                QList<int> outlierIndices = identifyOutliers(coords, plane, threshold_factor);
+
+                if (outlierIndices.isEmpty() || coords.rows() - outlierIndices.size() < 4) {
+                    break;
                 }
-                break;
-            } else {
-                qDebug()<<"Iteration"<<iteration<<": Detected and removed"<<num_new_outliers<<"outlier(s).";
-                QSet<int> outSet;
-                for (int q=0;q<num_new_outliers;q++) outSet.insert(outlierIndices[q]);
-                Eigen::MatrixXd newCoords(coords.rows()-num_new_outliers,3);
-                int idxNew=0;
-                for (int r=0;r<coords.rows();r++){
-                    if (!outSet.contains(r)) {
-                        newCoords.row(idxNew++)=coords.row(r);
+
+                qDebug() << "Found" << outlierIndices.size() << "outliers";
+
+                // Usuń outliers z zachowaniem minimum punktów
+                Eigen::MatrixXd newCoords(coords.rows() - outlierIndices.size(), 3);
+                int newIdx = 0;
+                for (int i = 0; i < coords.rows(); i++) {
+                    if (!outlierIndices.contains(i)) {
+                        newCoords.row(newIdx++) = coords.row(i);
                     }
                 }
                 coords = newCoords;
+
                 iteration++;
+            } catch (const std::exception& e) {
+                qDebug() << "Error in iteration:" << e.what();
+                break;
             }
         }
-    }
 
-    residuals.resize(coords.rows());
-    for (int i=0;i<coords.rows();i++) {
-        double rx=coords(i,0), ry=coords(i,1), rz=coords(i,2);
-        double dist = std::abs(plane.a*rx + plane.b*ry + plane.c*rz + plane.d);
-        residuals(i)=dist;
-    }
+        // Calculate final residuals
+        residuals.resize(coords.rows());
+        for (int i = 0; i < coords.rows(); i++) {
+            residuals(i) = std::abs(plane.a * coords(i,0) + plane.b * coords(i,1) +
+                                    plane.c * coords(i,2) + plane.d);
+        }
 
-    FitResult result;
-    result.plane=plane;
-    result.inlierCoords=coords;
-    result.residuals=residuals;
-    result.processedData=processed;
-    return result;
+        FitResult result;
+        result.plane = plane;
+        result.inlierCoords = coords;
+        result.residuals = residuals;
+        result.processedData = processed;
+        return result;
+
+    } catch (const std::exception& e) {
+        qDebug() << "Error calculating coordinates:" << e.what();
+        throw;
+    }
 }
 
 void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData) {
-    // Wyznaczamy płaszczyznę i kąty
-    FitResult res = iterativePlaneFitting(sensorData,5,20,2.5);
-    double a = res.plane.a;
-    double b = res.plane.b;
-    double c = res.plane.c;
-    double d = res.plane.d;
+    try {
+        std::vector<MultiPlaneDetector::Plane> planes = MultiPlaneDetector::detectMultiplePlanes(sensorData);
+        QString description = MultiPlaneDetector::generatePlanesDescription(planes);
 
-    QString planeText = QString("Współczynniki płaszczyzny: a=%1, b=%2, c=%3, d=%4")
-                            .arg(a).arg(b).arg(c).arg(d);
-    ui->SurfaceLabel->setText(planeText);
+        if (planes.empty()) {
+            ui->SurfaceLabel->setText("Nie wykryto żadnych płaszczyzn");
+            ui->AngleLabel->setText("");
+        } else {
+            ui->SurfaceLabel->setText(QString("Wykryto %1 płaszczyzn:").arg(planes.size()));
+            ui->AngleLabel->setText(description);
+        }
+    } catch (const std::exception& e) {
+        qDebug() << "Error in updateLabels:" << e.what();
+        ui->SurfaceLabel->setText("Błąd przetwarzania danych");
+        ui->AngleLabel->setText("");
+    }
+}
 
-    // Kąty
-    double angle_x = std::atan(std::abs(a)/std::sqrt(b*b+c*c))*180.0/PI;
-    double angle_z = std::atan(std::abs(c)/std::sqrt(a*a+b*b))*180.0/PI;
+QList<QList<int>> Draw::rotate90Right(const QList<QList<int>> &original) {
+    qDebug() << "Rotating data, original size:" << original.size();
 
-    QString angleText = QString("Kąt do osi X: %1°, Kąt do osi Z: %2°")
-                            .arg(angle_x)
-                            .arg(angle_z);
-    ui->AngleLabel->setText(angleText);
+    QList<QList<int>> rotated;
+    if (original.isEmpty()) {
+        qDebug() << "Empty input data in rotate90Right";
+        return rotated;
+    }
+
+    try {
+        rotated.resize(8);
+        for (int i = 0; i < 8; i++) {
+            rotated[i].resize(8);
+            for (int j = 0; j < 8; j++) {
+                if (i < original.size() && (7-j) < original[i].size()) {
+                    rotated[i][j] = original[7-j][i];
+                } else {
+                    qDebug() << "Invalid access at" << i << j;
+                    return QList<QList<int>>();
+                }
+            }
+        }
+    }
+    catch (const std::exception& e) {
+        qDebug() << "Error in rotate90Right:" << e.what();
+        return QList<QList<int>>();
+    }
+
+    return rotated;
 }
 
 void Draw::updateSensorData(Ui::MainWindow *ui, QGraphicsScene *scene, const QList<QList<int>> &sensorData) {
-    // Obróć dane o 90 stopni w prawo
-    QList<QList<int>> rotated = rotate90Right(sensorData);
+
+
+    if (sensorData.size() != 8) {
+        qDebug() << "Błąd: Nieprawidłowa liczba wierszy:" << sensorData.size();
+        return;
+    }
+
+    for (const auto &row : sensorData) {
+        if (row.size() != 8) {
+            qDebug() << "Błąd: Nieprawidłowa liczba kolumn:" << row.size();
+            return;
+        }
+    }
+
+    // Bezpieczne obracanie danych
+    QList<QList<int>> rotated;
+    try {
+        rotated = rotate90Right(sensorData);
+    } catch (const std::exception& e) {
+        qDebug() << "Błąd podczas obracania danych:" << e.what();
+        return;
+    }
+
+    scene->clear();
 
     scene->clear();
     QRectF viewRect = ui->graphicsView->viewport()->rect();
