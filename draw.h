@@ -1,31 +1,34 @@
 #ifndef DRAW_H
 #define DRAW_H
 
+#include <QList>
 #include <QGraphicsScene>
 #include <QGraphicsPixmapItem>
 #include <Eigen/Dense>
-#include <QList>
-#include "ui_mainwindow.h"
+#include <vector>
+#include "multiplanedetector.h"
+class Ui_MainWindow; // Forward declaration
 
-// Dodajemy deklaracje Qt Data Visualization
-#include <QtDataVisualization/Q3DScatter>
-#include <QtDataVisualization/Q3DSurface>
-#include <QtDataVisualization/QScatter3DSeries>
-#include <QtDataVisualization/QSurface3DSeries>
-#include <QtDataVisualization/QSurfaceDataProxy>
-#include <QtDataVisualization/QScatterDataProxy>
-
-QT_BEGIN_NAMESPACE
-class Q3DScatter;
-class Q3DSurface;
-QT_END_NAMESPACE
+namespace Ui {
+class MainWindow;
+}
 
 class Draw {
 public:
+    struct PointInfo {
+        int row;
+        int col;
+        double x;
+        double y;
+        double z;
+    };
 
     struct PlaneParams {
-        double a,b,c,d;
-        double azimuth_angle;  // Kąt w płaszczyźnie XZ (azymut)
+        double a;
+        double b;
+        double c;
+        double d;
+        double azimuth_angle;
     };
 
     struct FitResult {
@@ -34,35 +37,17 @@ public:
         Eigen::VectorXd residuals;
         QList<QList<int>> processedData;
     };
-    // Inicjalizacja sceny 2D
+
+    static QList<QList<int>> rotate90Right(const QList<QList<int>> &original);
+
+    // Konwersja (po obrocie) do chmury punktów 3D
+    static std::vector<PointInfo> calculateCoordinatesWithIndices(const QList<QList<int>> &sensorData);
+
+    static void updateSensorData(Ui::MainWindow *ui, QGraphicsScene *scene, const QList<QList<int>> &sensorData, const std::vector<MultiPlaneDetector::Plane> &planes);
+
     static void initializeGraphicsScene(Ui::MainWindow *ui, QGraphicsScene *&scene, QGraphicsPixmapItem *&gridPixmapItem);
 
-    // Aktualizacja danych i wyświetlanie macierzy 8x8 w 2D
-    static void updateSensorData(Ui::MainWindow *ui, QGraphicsScene *scene, const QList<QList<int>> &sensorData);
-
-    // Aktualizacja etykiet (kąty, płaszczyzna)
     static void updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData);
-
-    // Debug
-    static void printMatrixToQDebug(const Eigen::MatrixXd &matrix);
-
-    // Funkcja do wyświetlenia widoku 3D (drugi sposób wizualizacji)
-    static void show3DView(Ui::MainWindow *ui, const QList<QList<int>> &sensorData);
-
-    static PlaneParams fitPlane(const Eigen::MatrixXd &coords);
-    static FitResult iterativePlaneFitting(const QList<QList<int>> &sensorData, int max_outliers=5, int max_iterations=20, double threshold_factor=2.5);
-
-        static QList<QList<int>> rotate90Right(const QList<QList<int>> &original);
-
-private:
-
-
-
-    static QList<QList<int>> preprocessSensorData(const QList<QList<int>> &sensorData, int max_outliers=3);
-    static Eigen::MatrixXd calculateCoordinates(const QList<QList<int>> &sensorData);
-
-    static QList<int> identifyOutliers(const Eigen::MatrixXd &coords, const PlaneParams &plane, double threshold_factor=2.5);
-
 };
 
 #endif // DRAW_H

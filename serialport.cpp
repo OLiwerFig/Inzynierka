@@ -1,5 +1,6 @@
 #include "serialport.h"
 #include "mainwindow.h"
+#include "multiplanedetector.h"
 #include "draw.h"
 #include "ui_mainwindow.h"
 #include <QMetaObject>
@@ -103,16 +104,12 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
 {
     for (const QByteArray &line : values) {
         QString trimmedLine = QString::fromUtf8(line).trimmed();
-
         qDebug() << "Otrzymano linię:" << trimmedLine;
 
         if (trimmedLine.startsWith("$PWM")) {
-            qDebug() << "Znaleziono dane PWM";
+            // Obsługa PWM bez zmian
             QStringList parts = trimmedLine.split(',');
-            qDebug() << "Części:" << parts;
-
             if (parts.size() >= 3) {
-                // Usuń znaki $ i # z wartości
                 QString leftStr = parts[1];
                 QString rightStr = parts[2];
                 rightStr.remove('#');
@@ -122,13 +119,9 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
                 float rightPWM = rightStr.toFloat(&okRight);
 
                 if (okLeft && okRight) {
-                    qDebug() << "Wartości PWM - Lewy:" << leftPWM << "Prawy:" << rightPWM;
-
-                    // Aktualizacja tekstów
                     ui->speed_text_L->setText(QString("Left PWM: %1").arg(leftPWM));
                     ui->speed_text_R->setText(QString("Right PWM: %1").arg(rightPWM));
 
-                    // Aktualizacja progress barów
                     ui->speedLProgressBar->setValue(static_cast<int>(leftPWM));
                     ui->speedRProgressBar->setValue(static_cast<int>(rightPWM));
                 }
@@ -136,15 +129,6 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
             continue;
         }
 
-
-
-        // Sprawdź czy to potwierdzenie komendy
-        if (trimmedLine.startsWith("CMD_")) {
-            qDebug() << "Otrzymano potwierdzenie:" << trimmedLine;
-            continue;
-        }
-
-        // Sprawdź czy to potwierdzenie komendy
         if (trimmedLine.startsWith("CMD_")) {
             qDebug() << "Otrzymano potwierdzenie:" << trimmedLine;
             continue;
@@ -154,16 +138,14 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
             currentSensor = trimmedLine.at(0).toLatin1();
             qDebug() << "Zmieniono aktywny czujnik na:" << currentSensor;
         } else {
-            // Bezpieczne przetwarzanie danych z czujnika
+            // Przetwarzanie danych z czujnika (8x8)
             QStringList dataList = trimmedLine.split(' ', Qt::SkipEmptyParts);
 
-            // Sprawdź czy mamy dokładnie 64 wartości
             if (dataList.size() != 64) {
                 qDebug() << "Błąd: Nieprawidłowa liczba wartości:" << dataList.size();
                 continue;
             }
 
-            // Utwórz macierz 8x8
             QList<QList<int>> sensorData;
             bool conversionOk = true;
 
@@ -172,20 +154,14 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
                     QList<int> row;
                     for (int j = 0; j < 8 && conversionOk; ++j) {
                         int index = i * 8 + j;
-                        if (index < dataList.size()) {
-                            bool ok;
-                            int value = dataList[index].toInt(&ok);
-                            if (!ok) {
-                                qDebug() << "Błąd konwersji wartości:" << dataList[index];
-                                conversionOk = false;
-                                break;
-                            }
-                            row.append(value);
-                        } else {
-                            qDebug() << "Błąd: Indeks poza zakresem:" << index;
+                        bool ok;
+                        int value = dataList[index].toInt(&ok);
+                        if (!ok) {
+                            qDebug() << "Błąd konwersji wartości:" << dataList[index];
                             conversionOk = false;
                             break;
                         }
+                        row.append(value);
                     }
                     if (conversionOk) {
                         sensorData.append(row);
@@ -193,20 +169,29 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
                 }
 
                 if (conversionOk && sensorData.size() == 8 && sensorData[0].size() == 8) {
-                    // Zapisz dane w mapie
                     sensorLastData[currentSensor] = sensorData;
 
-                    // Sprawdź aktywny czujnik
+                    // Aktywny czujnik
                     QString selected = ui->FlagiComboBox->currentText();
                     char selectedChar = '\0';
                     if (selected == "Czujnik 1") selectedChar = 'A';
                     else if (selected == "Czujnik 2") selectedChar = 'B';
                     else if (selected == "Czujnik 3") selectedChar = 'C';
 
-                    // Aktualizuj widok tylko jeśli to aktywny czujnik
                     if (selectedChar == currentSensor) {
-                        QMetaObject::invokeMethod(mainWindow, [ui, scene, sensorData]() {
-                                Draw::updateSensorData(ui, scene, sensorData);
+                        // Obracamy dane zaraz po odebraniu
+                        QList<QList<int>> rotatedData = Draw::rotate90Right(sensorData);
+
+                        // Wykryj płaszczyzny na obróconych danych
+                        std::vector<MultiPlaneDetector::Plane> planes = MultiPlaneDetector::detectMultiplePlanes(rotatedData);
+
+                        // Wywołaj updateSensorData z obróconymi danymi
+                        // Teraz updateSensorData wyświetla dane + wywołuje updateLabels w środku
+                        // lub też można updateLabels wywołać samodzielnie i przekazać planes do updateLabels
+
+                        QMetaObject::invokeMethod(mainWindow, [ui, scene, rotatedData, planes]() {
+                                Draw::updateSensorData(ui, scene, rotatedData, planes);
+
                             }, Qt::QueuedConnection);
                     }
                 } else {
@@ -218,7 +203,6 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
         }
     }
 }
-
 
 
 
