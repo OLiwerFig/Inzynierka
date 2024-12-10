@@ -184,26 +184,48 @@ void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData)
     }
 
     ui->SurfaceLabel->setText(QString("Wykryto %1 płaszczyzn").arg(planes.size()));
-
     QString description;
+
     for (size_t i = 0; i < planes.size(); i++) {
         const auto &plane = planes[i];
         double azimuth = plane.params.azimuth_angle;
         double elevation = plane.params.elevation_angle;
-        QString directionAzimuth = azimuth < 0 ? "LEWO" : "PRAWO";
-        QString directionElevation = elevation < 0 ? "DÓŁ" : "GÓRA";
 
         description += QString("Płaszczyzna %1:\n").arg(i+1);
-        // Dodajemy równanie płaszczyzny
+
+        // Typ płaszczyzny
+        QString planeType = (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) ? "Pionowa" : "Pozioma";
+        description += QString("  Typ płaszczyzny: %1\n").arg(planeType);
+
+        // Trend wartości
+        QString trendDirection = plane.isIncreasingTrend ? "rosnący" : "malejący";
+        description += QString("  Trend wartości: %1\n").arg(trendDirection);
+
+        // Równanie płaszczyzny
         description += QString("  Równanie płaszczyzny: %1x + %2y + %3z + %4 = 0\n")
                            .arg(plane.params.a, 0, 'f', 4)
                            .arg(plane.params.b, 0, 'f', 4)
                            .arg(plane.params.c, 0, 'f', 4)
                            .arg(plane.params.d, 0, 'f', 4);
-        description += QString("  Kąt azymutu: %1° (%2)\n").arg(azimuth, 0, 'f', 1).arg(directionAzimuth);
-        description += QString("  Kąt elewacji: %1° (%2)\n").arg(elevation, 0, 'f', 1).arg(directionElevation);
-        description += QString("  Średnie odchylenie: %1 mm\n").arg(plane.meanResidual,0,'f',2);
 
+        // Kąty i kierunki
+        if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
+            description += QString("  Kąt azymutu: %1° (%2)\n")
+                               .arg(azimuth, 0, 'f', 1)
+                               .arg(plane.isIncreasingTrend ? "wartości rosną" : "wartości maleją");
+        } else {
+            description += QString("  Kąt azymutu: %1° (płaszczyzna pozioma)\n")
+                               .arg(azimuth, 0, 'f', 1);
+        }
+
+        description += QString("  Kąt elewacji: %1°\n")
+                           .arg(elevation, 0, 'f', 1);
+
+        // Średnie odchylenie
+        description += QString("  Średnie odchylenie: %1 mm\n")
+                           .arg(plane.meanResidual, 0, 'f', 2);
+
+        // Wykorzystane wiersze i kolumny
         if (!plane.rowsUsed.empty() && !plane.colsUsed.empty()) {
             description += "  Wykorzystane wiersze: ";
             for (auto r : plane.rowsUsed)
