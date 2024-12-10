@@ -7,19 +7,24 @@
 #include <QGraphicsTextItem>
 #include <QPen>
 #include <QBrush>
+#include <algorithm>
 
-#define PI 3.14159265
+// Definicja stałej PI
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-// Tablice kątów (elewacja i azymut) w stopniach
+
+
 static double rotatedAnglesZ[8][8] = {
-    {-18.15, -13.26, -8.04, -2.79,  2.79,  8.04, 13.26, 18.15},
-    {-18.63, -13.65, -8.34, -2.86,  2.86,  8.34, 13.65, 18.63},
-    {-19.04, -13.92, -8.57, -2.93,  2.93,  8.57, 13.92, 19.04},
-    {-19.9,  -14.5,  -8.82, -2.96,  2.96,  8.82, 14.5,  19.9 },
-    {-19.9,  -14.5,  -8.82, -2.96,  2.96,  8.82, 14.5,  19.9 },
-    {-19.04, -13.92, -8.57, -2.93,  2.93,  8.57, 13.92, 19.04},
-    {-18.63, -13.65, -8.34, -2.86,  2.86,  8.34, 13.65, 18.63},
-    {-18.15, -13.26, -8.04, -2.79,  2.79,  8.04, 13.26, 18.15}
+    {-17.285, -18.134, -18.765, -19.104, -19.104, -18.765, -18.134, -17.285},
+    {-12.732, -13.401, -13.904, -14.174, -14.174, -13.904, -13.401, -12.732},
+    {-7.806, -8.236, -8.561, -8.737, -8.737, -8.561, -8.236, -7.806},
+    {-2.631, -2.779, -2.892, -2.953, -2.953, -2.892, -2.779, -2.631},
+    {2.631, 2.779, 2.892, 2.953, 2.953, 2.892, 2.779, 2.631},
+    {7.806, 8.236, 8.561, 8.737, 8.737, 8.561, 8.236, 7.806},
+    {12.732, 13.401, 13.904, 14.174, 14.174, 13.904, 13.401, 12.732},
+    {17.285, 18.134, 18.765, 19.104, 19.104, 18.765, 18.134, 17.285}
 };
 
 static double rotatedAnglesX[8][8] = {
@@ -32,6 +37,45 @@ static double rotatedAnglesX[8][8] = {
     {-13.26,-13.65,-13.92,-14.5, -14.5, -13.92,-13.65,-13.26},
     {-18.15,-18.63,-19.04,-19.9, -19.9, -19.04,-18.63,-18.15}
 };
+
+// Preprocesowanie danych czujnika: usuwanie outliers
+QList<QList<int>> Draw::preprocessSensorData(const QList<QList<int>> &sensorData, int maxOutliers) {
+    QList<QList<int>> data = sensorData;
+    std::vector<std::pair<int, int>> outlierIndices;
+
+    for (int i = 0; i < data.size(); ++i) {
+        for (int j = 0; j < data[i].size(); ++j) {
+            int current_value = data[i][j];
+            std::vector<int> neighbors;
+
+            for (int di = -1; di <=1; ++di) {
+                for (int dj = -1; dj <=1; ++dj) {
+                    if (di ==0 && dj ==0) continue;
+                    int ni = i + di;
+                    int nj = j + dj;
+                    if (ni >=0 && ni < data.size() && nj >=0 && nj < data[i].size()) {
+                        neighbors.push_back(data[ni][nj]);
+                    }
+                }
+            }
+
+            if (!neighbors.empty()) {
+                double neighbor_mean = std::accumulate(neighbors.begin(), neighbors.end(), 0.0) / neighbors.size();
+                if (current_value > 5 * neighbor_mean) {
+                    outlierIndices.emplace_back(i, j);
+                    data[i][j] = static_cast<int>(neighbor_mean); // Zastąpienie średnią
+                }
+            }
+        }
+    }
+
+    if (outlierIndices.size() > static_cast<size_t>(maxOutliers)) {
+        outlierIndices.erase(outlierIndices.begin() + maxOutliers, outlierIndices.end());
+        qDebug() << "Warning: More than" << maxOutliers << "extreme outliers detected. Only correcting the first" << maxOutliers << ".";
+    }
+
+    return data;
+}
 
 QList<QList<int>> Draw::rotate90Right(const QList<QList<int>> &original) {
     if (original.isEmpty()) {
@@ -48,41 +92,29 @@ QList<QList<int>> Draw::rotate90Right(const QList<QList<int>> &original) {
     return rotated;
 }
 
-std::vector<Draw::PointInfo> Draw::calculateCoordinatesWithIndices(const QList<QList<int>> &sensorData) {
-    if (sensorData.isEmpty()) {
-        throw std::runtime_error("Empty sensor data");
-    }
+std::vector<Draw::PointInfo> Draw::calculateCoordinatesWithIndices(const QList<QList<int>>& sensorData) {
+    std::vector<Draw::PointInfo> points;
+    points.reserve(64);
 
-    int rows = sensorData.size();
-    int cols = sensorData[0].size();
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            double value = sensorData[i][j];
+            double elevRad = rotatedAnglesX[i][j] * M_PI / 180.0;
+            double azimRad = rotatedAnglesZ[i][j] * M_PI / 180.0;
 
-    if (rows != 8 || cols !=8) {
-        throw std::runtime_error("Data must be 8x8");
-    }
-
-    std::vector<PointInfo> points;
-    points.reserve(rows * cols);
-
-    // Zakładamy, że tablice kątów dotyczą pozycji w macierzy po obrocie
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            double d_value = sensorData[i][j];
-            double elev = rotatedAnglesX[i][j] * PI / 180.0;
-            double azim = rotatedAnglesZ[i][j] * PI / 180.0;
-
-            PointInfo p;
+            Draw::PointInfo p;
             p.row = i;
             p.col = j;
-            p.x = d_value * std::cos(elev) * std::sin(azim);
-            p.y = d_value * std::sin(elev);
-            p.z = d_value * std::cos(elev) * std::cos(azim);
+            p.x = value * std::cos(elevRad) * std::sin(azimRad);
+            p.y = value * std::sin(elevRad);
+            p.z = value * std::cos(elevRad) * std::cos(azimRad);
 
             points.push_back(p);
         }
     }
-
     return points;
 }
+
 
 void Draw::updateSensorData(Ui::MainWindow *ui, QGraphicsScene *scene, const QList<QList<int>> &sensorData, const std::vector<MultiPlaneDetector::Plane> &planes) {
     if (sensorData.size() != 8) {
@@ -143,8 +175,6 @@ void Draw::initializeGraphicsScene(Ui::MainWindow *ui, QGraphicsScene *&scene, Q
     ui->graphicsView->fitInView(scene->sceneRect(), Qt::KeepAspectRatio);
 }
 
-
-
 void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData) {
     std::vector<MultiPlaneDetector::Plane> planes = MultiPlaneDetector::detectMultiplePlanes(sensorData);
     if (planes.empty()) {
@@ -158,15 +188,22 @@ void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData)
     QString description;
     for (size_t i = 0; i < planes.size(); i++) {
         const auto &plane = planes[i];
-        double angle = plane.params.azimuth_angle;
-        QString direction = std::abs(angle) < 10.0 ? "PRZÓD" :
-                                (angle < 0 ? "LEWO" : "PRAWO");
+        double azimuth = plane.params.azimuth_angle;
+        double elevation = plane.params.elevation_angle;
+        QString directionAzimuth = azimuth < 0 ? "LEWO" : "PRAWO";
+        QString directionElevation = elevation < 0 ? "DÓŁ" : "GÓRA";
 
         description += QString("Płaszczyzna %1:\n").arg(i+1);
-        description += QString("  Kierunek: %1 (kąt: %2°)\n").arg(direction).arg(angle,0,'f',1);
+        // Dodajemy równanie płaszczyzny
+        description += QString("  Równanie płaszczyzny: %1x + %2y + %3z + %4 = 0\n")
+                           .arg(plane.params.a, 0, 'f', 4)
+                           .arg(plane.params.b, 0, 'f', 4)
+                           .arg(plane.params.c, 0, 'f', 4)
+                           .arg(plane.params.d, 0, 'f', 4);
+        description += QString("  Kąt azymutu: %1° (%2)\n").arg(azimuth, 0, 'f', 1).arg(directionAzimuth);
+        description += QString("  Kąt elewacji: %1° (%2)\n").arg(elevation, 0, 'f', 1).arg(directionElevation);
         description += QString("  Średnie odchylenie: %1 mm\n").arg(plane.meanResidual,0,'f',2);
 
-        // Wyświetlamy indeksy w obróconym układzie, który traktujemy jako "oryginalny".
         if (!plane.rowsUsed.empty() && !plane.colsUsed.empty()) {
             description += "  Wykorzystane wiersze: ";
             for (auto r : plane.rowsUsed)
@@ -184,4 +221,3 @@ void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData)
 
     ui->SurfaceLabel->setText(description);
 }
-

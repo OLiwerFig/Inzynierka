@@ -171,7 +171,7 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
                 if (conversionOk && sensorData.size() == 8 && sensorData[0].size() == 8) {
                     sensorLastData[currentSensor] = sensorData;
 
-                    // Aktywny czujnik
+                    // Sprawdzamy, czy aktywny czujnik jest tym wybranym w interfejsie
                     QString selected = ui->FlagiComboBox->currentText();
                     char selectedChar = '\0';
                     if (selected == "Czujnik 1") selectedChar = 'A';
@@ -186,12 +186,8 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
                         std::vector<MultiPlaneDetector::Plane> planes = MultiPlaneDetector::detectMultiplePlanes(rotatedData);
 
                         // Wywołaj updateSensorData z obróconymi danymi
-                        // Teraz updateSensorData wyświetla dane + wywołuje updateLabels w środku
-                        // lub też można updateLabels wywołać samodzielnie i przekazać planes do updateLabels
-
                         QMetaObject::invokeMethod(mainWindow, [ui, scene, rotatedData, planes]() {
                                 Draw::updateSensorData(ui, scene, rotatedData, planes);
-
                             }, Qt::QueuedConnection);
                     }
                 } else {
@@ -203,7 +199,6 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
         }
     }
 }
-
 
 
 
