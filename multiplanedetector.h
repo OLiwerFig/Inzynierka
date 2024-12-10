@@ -15,9 +15,10 @@ public:
 
     struct Plane {
         PlaneParameters params;
-        std::set<int> rowsUsed;  // Changed from vector to set
-        std::set<int> colsUsed;  // Changed from vector to set
+        std::set<int> rowsUsed;
+        std::set<int> colsUsed;
         double meanResidual;
+        bool isIncreasingTrend;  // Dodane nowe pole
     };
 
     static bool isValidSensorData(const QList<QList<int>>& sensorData);

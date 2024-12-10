@@ -148,6 +148,30 @@ static std::vector<size_t> identifyOutliers(const std::vector<Point3D>& coords,
     return outlier_indices;
 }
 
+
+static bool isIncreasingTrend(const std::vector<Point3D>& coords) {
+    // Grupujemy punkty według kolumn
+    std::vector<std::vector<double>> columns(8);
+    for (const auto& p : coords) {
+        columns[p.col].push_back(p.z);  // Używamy współrzędnej Z
+    }
+
+    // Obliczamy średni trend dla każdej kolumny
+    double total_diff = 0;
+    int count = 0;
+
+    for (size_t i = 0; i < columns.size() - 1; i++) {
+        if (!columns[i].empty() && !columns[i + 1].empty()) {
+            double avg_curr = std::accumulate(columns[i].begin(), columns[i].end(), 0.0) / columns[i].size();
+            double avg_next = std::accumulate(columns[i + 1].begin(), columns[i + 1].end(), 0.0) / columns[i + 1].size();
+            total_diff += (avg_next - avg_curr);
+            count++;
+        }
+    }
+
+    return count > 0 && (total_diff / count) > 0;
+}
+
 std::vector<MultiPlaneDetector::Plane> MultiPlaneDetector::detectMultiplePlanes(const QList<QList<int>>& sensorData) {
     std::vector<Plane> detectedPlanes;
     const int MAX_OUTLIERS = 5;
@@ -180,18 +204,26 @@ std::vector<MultiPlaneDetector::Plane> MultiPlaneDetector::detectMultiplePlanes(
         if (outlier_indices.empty()) {
             qDebug() << "No outliers detected in iteration" << iteration;
 
-            // Create final plane
+
             Plane plane;
             plane.params.a = a;
             plane.params.b = b;
             plane.params.c = c;
             plane.params.d = d;
 
-            // Calculate angles
+            // Określamy trend
+            plane.isIncreasingTrend = isIncreasingTrend(current_coords);
+
+            // Obliczamy kąt z uwzględnieniem trendu
+            double dot_product = c;
+            double norm = std::sqrt(a*a + b*b + c*c);
+            double angle = std::acos(std::abs(dot_product) / norm) * 180.0 / M_PI;
+            plane.params.azimuth_angle = plane.isIncreasingTrend ? angle : -angle;
+
+
+            // Elevation angle pozostaje bez zmian
             plane.params.elevation_angle = std::atan2(std::abs(a),
                                                       std::sqrt(b * b + c * c)) * 180.0 / M_PI;
-            plane.params.azimuth_angle = std::atan2(std::abs(c),
-                                                    std::sqrt(a * a + b * b)) * 180.0 / M_PI;
 
             // Store used points
             for (const auto& p : current_coords) {

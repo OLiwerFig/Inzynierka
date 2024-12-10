@@ -178,12 +178,12 @@ void Draw::initializeGraphicsScene(Ui::MainWindow *ui, QGraphicsScene *&scene, Q
 void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData) {
     std::vector<MultiPlaneDetector::Plane> planes = MultiPlaneDetector::detectMultiplePlanes(sensorData);
     if (planes.empty()) {
-        ui->AngleLabel->setText("Wykryto 0 płaszczyzn");
-        ui->SurfaceLabel->setText("Brak płaszczyzn do wyświetlenia");
+        ui->SurfaceLabel->setText("Wykryto 0 płaszczyzn");
+        ui->AngleLabel->setText("Brak płaszczyzn do wyświetlenia");
         return;
     }
 
-    ui->AngleLabel->setText(QString("Wykryto %1 płaszczyzn").arg(planes.size()));
+    ui->SurfaceLabel->setText(QString("Wykryto %1 płaszczyzn").arg(planes.size()));
 
     QString description;
     for (size_t i = 0; i < planes.size(); i++) {
@@ -219,5 +219,5 @@ void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData)
         description += "\n";
     }
 
-    ui->SurfaceLabel->setText(description);
+    ui->AngleLabel->setText(description);
 }
