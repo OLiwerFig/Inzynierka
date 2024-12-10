@@ -15,25 +15,25 @@ public:
 
     struct Plane {
         PlaneParameters params;
-        std::set<int> rowsUsed;  // Changed from vector to set
-        std::set<int> colsUsed;  // Changed from vector to set
+        std::set<int> rowsUsed;
+        std::set<int> colsUsed;
         double meanResidual;
+        bool isIncreasingTrend;  // Dodane pole dla trendu
     };
 
     static bool isValidSensorData(const QList<QList<int>>& sensorData);
     static std::vector<Plane> detectMultiplePlanes(const QList<QList<int>>& sensorData);
 
-private:
-    // Define the angle arrays as static members
+    // Tablice kątów jako static constexpr i public, żeby były dostępne w Draw
     static constexpr double rotatedAnglesX[8][8] = {
-        {-18.161, -13.423, -8.250, -2.784, 2.784, 8.250, 13.423, 18.161},
-        {-18.624, -13.791, -8.488, -2.867, 2.867, 8.488, 13.791, 18.624},
-        {-18.954, -14.054, -8.659, -2.926, 2.926, 8.659, 14.054, 18.954},
-        {-19.125, -14.192, -8.748, -2.957, 2.957, 8.748, 14.192, 19.125},
-        {-19.125, -14.192, -8.748, -2.957, 2.957, 8.748, 14.192, 19.125},
-        {-18.954, -14.054, -8.659, -2.926, 2.926, 8.659, 14.054, 18.954},
-        {-18.624, -13.791, -8.488, -2.867, 2.867, 8.488, 13.791, 18.624},
-        {-18.161, -13.423, -8.250, -2.784, 2.784, 8.250, 13.423, 18.161}
+        {18.15, 18.63, 19.04, 19.9,  19.9,  19.04, 18.63, 18.15},
+        {13.26, 13.65, 13.92, 14.5,  14.5,  13.92, 13.65, 13.26},
+        {8.04,  8.34,  8.57,  8.82,  8.82,  8.57,  8.34,  8.04},
+        {2.79,  2.86,  2.93,  2.96,  2.96,  2.93,  2.86,  2.79},
+        {-2.79, -2.86, -2.93, -2.96, -2.96, -2.93, -2.86, -2.79},
+        {-8.04, -8.34, -8.57, -8.82, -8.82, -8.57, -8.34, -8.04},
+        {-13.26,-13.65,-13.92,-14.5, -14.5, -13.92,-13.65,-13.26},
+        {-18.15,-18.63,-19.04,-19.9, -19.9, -19.04,-18.63,-18.15}
     };
 
     static constexpr double rotatedAnglesZ[8][8] = {

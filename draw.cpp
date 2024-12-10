@@ -99,8 +99,8 @@ std::vector<Draw::PointInfo> Draw::calculateCoordinatesWithIndices(const QList<Q
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             double value = sensorData[i][j];
-            double elevRad = rotatedAnglesX[i][j] * M_PI / 180.0;
-            double azimRad = rotatedAnglesZ[i][j] * M_PI / 180.0;
+            double elevRad = MultiPlaneDetector::rotatedAnglesX[i][j] * M_PI / 180.0;
+            double azimRad = MultiPlaneDetector::rotatedAnglesZ[i][j] * M_PI / 180.0;
 
             Draw::PointInfo p;
             p.row = i;
@@ -176,25 +176,43 @@ void Draw::initializeGraphicsScene(Ui::MainWindow *ui, QGraphicsScene *&scene, Q
 }
 
 void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData) {
+    qDebug() << "Rozpoczynam updateLabels";
+    qDebug() << "Rozmiar danych wejściowych:" << sensorData.size();
+
     std::vector<MultiPlaneDetector::Plane> planes = MultiPlaneDetector::detectMultiplePlanes(sensorData);
+    qDebug() << "Liczba wykrytych płaszczyzn:" << planes.size();
+
     if (planes.empty()) {
+        qDebug() << "Brak wykrytych płaszczyzn";
         ui->AngleLabel->setText("Wykryto 0 płaszczyzn");
         ui->SurfaceLabel->setText("Brak płaszczyzn do wyświetlenia");
         return;
     }
 
-    ui->AngleLabel->setText(QString("Wykryto %1 płaszczyzn").arg(planes.size()));
+    // Wyświetl dane pierwszej płaszczyzny dla debugowania
+    if (!planes.empty()) {
+        const auto &firstPlane = planes[0];
+        qDebug() << "Parametry pierwszej płaszczyzny:";
+        qDebug() << "a:" << firstPlane.params.a;
+        qDebug() << "b:" << firstPlane.params.b;
+        qDebug() << "c:" << firstPlane.params.c;
+        qDebug() << "d:" << firstPlane.params.d;
+        qDebug() << "azimuth:" << firstPlane.params.azimuth_angle;
+        qDebug() << "elevation:" << firstPlane.params.elevation_angle;
+        qDebug() << "trend:" << firstPlane.isIncreasingTrend;
+    }
 
     QString description;
     for (size_t i = 0; i < planes.size(); i++) {
+        qDebug() << "Przetwarzam płaszczyznę" << i;
         const auto &plane = planes[i];
         double azimuth = plane.params.azimuth_angle;
         double elevation = plane.params.elevation_angle;
         QString directionAzimuth = azimuth < 0 ? "LEWO" : "PRAWO";
         QString directionElevation = elevation < 0 ? "DÓŁ" : "GÓRA";
+        QString trend = plane.isIncreasingTrend ? "ROSNĄCY" : "MALEJĄCY";
 
         description += QString("Płaszczyzna %1:\n").arg(i+1);
-        // Dodajemy równanie płaszczyzny
         description += QString("  Równanie płaszczyzny: %1x + %2y + %3z + %4 = 0\n")
                            .arg(plane.params.a, 0, 'f', 4)
                            .arg(plane.params.b, 0, 'f', 4)
@@ -202,6 +220,7 @@ void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData)
                            .arg(plane.params.d, 0, 'f', 4);
         description += QString("  Kąt azymutu: %1° (%2)\n").arg(azimuth, 0, 'f', 1).arg(directionAzimuth);
         description += QString("  Kąt elewacji: %1° (%2)\n").arg(elevation, 0, 'f', 1).arg(directionElevation);
+        description += QString("  Trend wartości: %1\n").arg(trend);
         description += QString("  Średnie odchylenie: %1 mm\n").arg(plane.meanResidual,0,'f',2);
 
         if (!plane.rowsUsed.empty() && !plane.colsUsed.empty()) {
@@ -209,15 +228,16 @@ void Draw::updateLabels(Ui::MainWindow *ui, const QList<QList<int>> &sensorData)
             for (auto r : plane.rowsUsed)
                 description += QString::number(r) + " ";
             description += "\n";
-
             description += "  Wykorzystane kolumny: ";
             for (auto c : plane.colsUsed)
                 description += QString::number(c) + " ";
             description += "\n";
         }
-
         description += "\n";
     }
 
+    qDebug() << "Opis do wyświetlenia:" << description;
+    ui->AngleLabel->setText(QString("Wykryto %1 płaszczyzn").arg(planes.size()));
     ui->SurfaceLabel->setText(description);
+    qDebug() << "Zakończono updateLabels";
 }
