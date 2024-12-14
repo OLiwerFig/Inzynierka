@@ -78,6 +78,8 @@ void AutonomousNav::sendMovementCommand(char command) {
         lastMovementCommand = command;
         qDebug() << "Sent movement command:" << command;
         updateDirectionLabel(command);
+    } else {
+        qDebug() << "Movement command '" << command << "' already sent. Skipping.";
     }
 }
 
@@ -117,10 +119,12 @@ void AutonomousNav::updateDirectionLabel(char command) {
 }
 
 void AutonomousNav::processNavigationStep() {
+    qDebug() << "Processing navigation step. isNavigating:" << isNavigating;
     if (!isNavigating) {
         serialHandler->setSpeed(0);
         sendMovementCommand('S');
         updateDirectionLabel('S');
+        qDebug() << "Navigation is not active. Sent stop command.";
         return;
     }
 
@@ -128,29 +132,43 @@ void AutonomousNav::processNavigationStep() {
     auto rightSensor = serialHandler->sensorLastData['B'];
     auto frontSensor = serialHandler->sensorLastData['C'];
 
-    if (checkCollisionRisk(frontSensor)) {
+    if (frontSensor.isEmpty() || leftSensor.isEmpty() || rightSensor.isEmpty()) {
+        qDebug() << "Incomplete sensor data. Skipping navigation step.";
+        return;
+    }
+
+    if (checkFrontCollisionRisk(frontSensor)) {
         if (!isCurrentlyTurning) {
+            qDebug() << "Collision risk detected in front. Handling front wall.";
             handleFrontWall();
         }
         return;
     }
 
     if (isCurrentlyTurning) {
+        qDebug() << "Currently turning. Handling turning sequence.";
         handleTurningSequence(leftSensor, rightSensor, frontSensor);
     } else {
+        qDebug() << "Following wall sequence.";
         followWallSequence(leftSensor, rightSensor);
     }
 }
 
-bool AutonomousNav::checkCollisionRisk(const QList<QList<int>>& frontSensor) {
-    for (int i = 3; i <= 5; i++) {
-        for (int j = 3; j <= 5; j++) {
-            if (frontSensor[i][j] < SAFE_DISTANCE) {
-                qDebug() << "Front obstacle detected at" << frontSensor[i][j] << "mm";
+bool AutonomousNav::checkFrontCollisionRisk(const QList<QList<int>>& frontSensor) {
+    qDebug() << "Checking front collision risk.";
+    // Detect multiple planes in frontSensor
+    std::vector<MultiPlaneDetector::Plane> frontPlanes =
+        MultiPlaneDetector::detectMultiplePlanes(frontSensor);
+
+    for (const auto& plane : frontPlanes) {
+        if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
+            if (std::abs(plane.params.d) < FRONT_WALL_DISTANCE) {
+                qDebug() << "Front vertical wall detected with d:" << plane.params.d;
                 return true;
             }
         }
     }
+
     return false;
 }
 
@@ -159,7 +177,10 @@ void AutonomousNav::handleTurningSequence(
     const QList<QList<int>>& rightSensor,
     const QList<QList<int>>& frontSensor) {
 
-    if (!isNavigating || !isCurrentlyTurning) return;
+    if (!isNavigating || !isCurrentlyTurning) {
+        qDebug() << "Not navigating or not currently turning.";
+        return;
+    }
 
     std::vector<MultiPlaneDetector::Plane> rightPlanes =
         MultiPlaneDetector::detectMultiplePlanes(rightSensor);
@@ -190,11 +211,13 @@ void AutonomousNav::handleTurningSequence(
     }
 
     if (foundGoodAngle && pathClear) {
-        qDebug() << "Turn complete - found good angle and path is clear";
+        qDebug() << "Turn complete - found good angle and path is clear.";
         isCurrentlyTurning = false;
         wallPID->reset();
+        // Opcjonalnie: Wysłanie polecenia dojazdu do przodu po zakończeniu skrętu
+        sendMovementCommand('F');
     } else {
-        // Zamiast bezpośrednio wysyłać 'L', użyj metody sendMovementCommand
+        // Kontynuacja skrętu w lewo
         serialHandler->setSpeed(TURN_SPEED);
         sendMovementCommand('L');
     }
@@ -204,7 +227,10 @@ void AutonomousNav::followWallSequence(
     const QList<QList<int>>& leftSensor,
     const QList<QList<int>>& rightSensor) {
 
-    if (!isNavigating) return;
+    if (!isNavigating) {
+        qDebug() << "Not navigating. Exiting followWallSequence.";
+        return;
+    }
 
     std::vector<MultiPlaneDetector::Plane> rightPlanes =
         MultiPlaneDetector::detectMultiplePlanes(rightSensor);
@@ -238,7 +264,6 @@ void AutonomousNav::followWallSequence(
         rightSpeed = std::clamp(rightSpeed, 0, 400);
 
         serialHandler->setSpeed(leftSpeed);
-        // Użyj metody sendMovementCommand zamiast bezpośredniego wysyłania 'F'
         sendMovementCommand('F');
 
         qDebug() << "Following wall - Angle:" << wallAngle
@@ -250,10 +275,13 @@ void AutonomousNav::followWallSequence(
 }
 
 void AutonomousNav::handleFrontWall() {
-    if (!isNavigating) return;
+    if (!isNavigating) {
+        qDebug() << "Not navigating. Cannot handle front wall.";
+        return;
+    }
 
     if (!isCurrentlyTurning) {
-        qDebug() << "Starting turn sequence";
+        qDebug() << "Starting turn sequence due to front wall.";
         isCurrentlyTurning = true;
         serialHandler->setSpeed(TURN_SPEED);
         sendMovementCommand('L');
@@ -262,7 +290,10 @@ void AutonomousNav::handleFrontWall() {
 }
 
 void AutonomousNav::searchForWall() {
-    if (!isNavigating) return;
+    if (!isNavigating) {
+        qDebug() << "Not navigating. Cannot search for wall.";
+        return;
+    }
 
     qDebug() << "No wall detected, searching...";
     serialHandler->setSpeed(150);

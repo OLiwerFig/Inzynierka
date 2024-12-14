@@ -39,9 +39,10 @@ private:
     QList<QString> lastCommands;  // Bufor ostatnich poleceń
 
     // Stałe konfiguracyjne
-    static constexpr int SAFE_DISTANCE = 120;    // mm
-    static constexpr int BASE_SPEED = 400;       // Prędkość podstawowa
-    static constexpr int TURN_SPEED = 150;       // Prędkość skrętu
+    static constexpr int SAFE_DISTANCE = 120;          // mm
+    static constexpr int FRONT_WALL_DISTANCE = 100;    // mm
+    static constexpr int BASE_SPEED = 400;             // Prędkość podstawowa
+    static constexpr int TURN_SPEED = 150;             // Prędkość skrętu
 
     // Mapowanie komend
     const QMap<char, QString> commandDescriptions = {
@@ -64,7 +65,7 @@ private:
                                const QList<QList<int>>& frontSensor);
 
     // Funkcje pomocnicze
-    bool checkCollisionRisk(const QList<QList<int>>& frontSensor);
+    bool checkFrontCollisionRisk(const QList<QList<int>>& frontSensor);
     void handleFrontWall();
     void searchForWall();
     void updateDirectionLabel(char command);
