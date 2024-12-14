@@ -1,141 +1,270 @@
 #include "autonomousnav.h"
+#include "multiplanedetector.h"
 #include <QDebug>
 #include <algorithm>
 
-AutonomousNav::AutonomousNav(serialport* serial, QObject *parent)
+// Implementacja PIDController
+PIDController::PIDController(double kp, double ki, double kd)
+    : kp(kp), ki(ki), kd(kd), previousError(0), integral(0) {}
+
+double PIDController::calculate(double setpoint, double currentValue, double deltaTime) {
+    double error = setpoint - currentValue;
+    integral += error * deltaTime;
+    double derivative = (error - previousError) / deltaTime;
+    previousError = error;
+    return kp * error + ki * integral + kd * derivative;
+}
+
+void PIDController::reset() {
+    previousError = 0;
+    integral = 0;
+}
+
+// Implementacja AutonomousNav
+AutonomousNav::AutonomousNav(serialport* serial, QLabel* label, QObject *parent)
     : QObject(parent)
     , serialHandler(serial)
+    , wallPID(new PIDController(0.8, 0.1, 0.3)) // Ustawienie domyślnych wartości PID
+    , directionLabel(label)
     , isNavigating(false)
-    , currentRotationAngle(0)
-    , bestDirection(0)
-    , rotationSpeed(100)
+    , isCurrentlyTurning(false)
+    , lastUpdateTime(QDateTime::currentMSecsSinceEpoch())
+    , lastMovementCommand('S') // Inicjalizacja do 'S' (Stop)
 {
-    navigationTimer = new QTimer(this);
-    navigationTimer->setInterval(SCAN_INTERVAL);
-    connect(navigationTimer, &QTimer::timeout, this, &AutonomousNav::onNavigationTimerTimeout);
+    connect(serialHandler, &serialport::serialDataReceived,
+            this, &AutonomousNav::onNewSensorData);
 
-    rotationTimer = new QTimer(this);
-    rotationTimer->setInterval(50);  // 50ms dla płynnego obrotu
-    connect(rotationTimer, &QTimer::timeout, this, &AutonomousNav::onRotationTimerTimeout);
+    if (directionLabel) {
+        directionLabel->clear();
+        lastCommands.clear();
+    }
 }
 
 void AutonomousNav::startNavigation() {
-    if (!isNavigating) {
-        isNavigating = true;
-        navigationTimer->start();
-        qDebug() << "Autonomous navigation started";
-    }
+    isNavigating = true;
+    isCurrentlyTurning = false;
+    wallPID->reset();
+    lastCommands.clear();
+    lastUpdateTime = QDateTime::currentMSecsSinceEpoch();
+    qDebug() << "Autonomous navigation started";
 }
 
 void AutonomousNav::stopNavigation() {
-    if (isNavigating) {
-        isNavigating = false;
-        navigationTimer->stop();
-        rotationTimer->stop();
-        serialHandler->sendMovementCommand('S');  // Stop
-        qDebug() << "Autonomous navigation stopped";
-    }
-}
-
-void AutonomousNav::processNavigationStep() {
-    // Pobierz dane z wszystkich czujników
-    auto rightSensor = serialHandler->sensorLastData['A'];  // Czujnik 1 (prawy)
-    auto leftSensor = serialHandler->sensorLastData['B'];   // Czujnik 2 (lewy)
-    auto frontSensor = serialHandler->sensorLastData['C'];  // Czujnik 3 (przód)
-
-    if (rightSensor.isEmpty() || leftSensor.isEmpty() || frontSensor.isEmpty()) {
-        qDebug() << "Waiting for sensor data...";
+    if (!isNavigating) {
+        qDebug() << "Attempted to stop navigation, but it was not active.";
         return;
     }
 
-    // Sprawdź czy bezpiecznie jest jechać do przodu
-    if (isSafeToMove(frontSensor)) {
-        // Dostosuj prędkość na podstawie odległości
-        int frontDistance = frontSensor[4][4];  // Środkowy punkt
-        adjustSpeed(frontDistance);
-        serialHandler->sendMovementCommand('F');
-    } else {
-        // Zatrzymaj się i rozpocznij skanowanie otoczenia
-        serialHandler->sendMovementCommand('S');
-        startRotationScan();
+    isNavigating = false;
+    isCurrentlyTurning = false;
+    serialHandler->setSpeed(0); // Ustawienie prędkości na 0
+    sendMovementCommand('S');
+    wallPID->reset();
+    updateDirectionLabel('S');
+    qDebug() << "Autonomous navigation stopped";
+
+    // Opcjonalnie: Wysłanie kilku sygnałów 'S' aby upewnić się, że robot zatrzyma się
+    for(int i = 0; i < 5; ++i) {
+        QTimer::singleShot(i * 100, this, [this]() {
+            sendMovementCommand('S');
+            qDebug() << "Sent stop command 'S'";
+        });
     }
 }
 
-bool AutonomousNav::isSafeToMove(const QList<QList<int>>& sensorData) const {
-    // Sprawdź środkowe elementy sensora
-    for (int i = 3; i <= 5; i++) {
-        for (int j = 3; j <= 5; j++) {
-            if (sensorData[i][j] < SAFE_DISTANCE) {
-                return false;
-            }
-        }
+void AutonomousNav::sendMovementCommand(char command) {
+    if (command != lastMovementCommand) {
+        serialHandler->sendMovementCommand(command);
+        lastMovementCommand = command;
+        qDebug() << "Sent movement command:" << command;
+        updateDirectionLabel(command);
     }
-    return true;
 }
 
-void AutonomousNav::startRotationScan() {
-    currentRotationAngle = 0;
-    bestDirection = 0;
-    rotationTimer->start();
-}
+void AutonomousNav::onNewSensorData() {
+    if (!isNavigating) {
+        qDebug() << "Received sensor data, but navigation is stopped.";
+        return;
+    }
 
-void AutonomousNav::processRotationStep() {
-    auto rightSensor = serialHandler->sensorLastData['A'];
-    auto leftSensor = serialHandler->sensorLastData['B'];
+    auto leftSensor = serialHandler->sensorLastData['A'];
+    auto rightSensor = serialHandler->sensorLastData['B'];
     auto frontSensor = serialHandler->sensorLastData['C'];
 
-    if (rightSensor.isEmpty() || leftSensor.isEmpty() || frontSensor.isEmpty()) {
+    if (leftSensor.isEmpty() || rightSensor.isEmpty() || frontSensor.isEmpty()) {
         return;
     }
 
-    // Ocena kierunku
-    int currentScore = evaluateDirection(frontSensor);
-    if (currentScore > bestDirection) {
-        bestDirection = currentRotationAngle;
-    }
-
-    // Kontynuuj obrót lub zakończ skanowanie
-    if (currentRotationAngle < 360) {
-        serialHandler->sendMovementCommand('R');
-        currentRotationAngle += ROTATION_STEP;
-    } else {
-        rotationTimer->stop();
-        // Obróć się w najlepszym znalezionym kierunku
-        currentRotationAngle = bestDirection;
-        serialHandler->sendMovementCommand('F');
-        navigationTimer->start();
-    }
-}
-
-int AutonomousNav::evaluateDirection(const QList<QList<int>>& sensorData) const {
-    int score = 0;
-    // Ocena na podstawie odległości w centralnym obszarze sensora
-    for (int i = 2; i <= 6; i++) {
-        for (int j = 2; j <= 6; j++) {
-            if (sensorData[i][j] > SAFE_DISTANCE) {
-                score += sensorData[i][j] - SAFE_DISTANCE;
-            }
-        }
-    }
-    return score;
-}
-
-void AutonomousNav::adjustSpeed(int distance) {
-    int newSpeed;
-    if (distance > SAFE_DISTANCE * 2) {
-        newSpeed = 400;  // Pełna prędkość
-    } else if (distance > SAFE_DISTANCE) {
-        newSpeed = 250;  // Średnia prędkość
-    } else {
-        newSpeed = 150;  // Wolna prędkość
-    }
-    serialHandler->setSpeed(newSpeed);
-}
-
-void AutonomousNav::onNavigationTimerTimeout() {
     processNavigationStep();
 }
 
-void AutonomousNav::onRotationTimerTimeout() {
-    processRotationStep();
+void AutonomousNav::updateDirectionLabel(char command) {
+    if (!directionLabel) return;
+
+    QString commandStr = commandDescriptions.value(command, "Unknown");
+    lastCommands.append(commandStr);
+
+    while (lastCommands.size() > 4) {
+        lastCommands.removeFirst();
+    }
+
+    QString labelText = "Last commands:\n";
+    for (const QString& cmd : lastCommands) {
+        labelText += cmd + "\n";
+    }
+
+    directionLabel->setText(labelText);
+}
+
+void AutonomousNav::processNavigationStep() {
+    if (!isNavigating) {
+        serialHandler->setSpeed(0);
+        sendMovementCommand('S');
+        updateDirectionLabel('S');
+        return;
+    }
+
+    auto leftSensor = serialHandler->sensorLastData['A'];
+    auto rightSensor = serialHandler->sensorLastData['B'];
+    auto frontSensor = serialHandler->sensorLastData['C'];
+
+    if (checkCollisionRisk(frontSensor)) {
+        if (!isCurrentlyTurning) {
+            handleFrontWall();
+        }
+        return;
+    }
+
+    if (isCurrentlyTurning) {
+        handleTurningSequence(leftSensor, rightSensor, frontSensor);
+    } else {
+        followWallSequence(leftSensor, rightSensor);
+    }
+}
+
+bool AutonomousNav::checkCollisionRisk(const QList<QList<int>>& frontSensor) {
+    for (int i = 3; i <= 5; i++) {
+        for (int j = 3; j <= 5; j++) {
+            if (frontSensor[i][j] < SAFE_DISTANCE) {
+                qDebug() << "Front obstacle detected at" << frontSensor[i][j] << "mm";
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void AutonomousNav::handleTurningSequence(
+    const QList<QList<int>>& leftSensor,
+    const QList<QList<int>>& rightSensor,
+    const QList<QList<int>>& frontSensor) {
+
+    if (!isNavigating || !isCurrentlyTurning) return;
+
+    std::vector<MultiPlaneDetector::Plane> rightPlanes =
+        MultiPlaneDetector::detectMultiplePlanes(rightSensor);
+
+    bool foundGoodAngle = false;
+    for (const auto& plane : rightPlanes) {
+        if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
+            double angle = plane.params.azimuth_angle;
+            qDebug() << "Turn sequence - right sensor angle:" << angle;
+
+            if (angle >= -10 && angle <= 10) {
+                foundGoodAngle = true;
+                break;
+            }
+        }
+    }
+
+    bool pathClear = true;
+    std::vector<MultiPlaneDetector::Plane> frontPlanes =
+        MultiPlaneDetector::detectMultiplePlanes(frontSensor);
+
+    for (const auto& plane : frontPlanes) {
+        if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL &&
+            std::abs(plane.params.d) < SAFE_DISTANCE) {
+            pathClear = false;
+            break;
+        }
+    }
+
+    if (foundGoodAngle && pathClear) {
+        qDebug() << "Turn complete - found good angle and path is clear";
+        isCurrentlyTurning = false;
+        wallPID->reset();
+    } else {
+        // Zamiast bezpośrednio wysyłać 'L', użyj metody sendMovementCommand
+        serialHandler->setSpeed(TURN_SPEED);
+        sendMovementCommand('L');
+    }
+}
+
+void AutonomousNav::followWallSequence(
+    const QList<QList<int>>& leftSensor,
+    const QList<QList<int>>& rightSensor) {
+
+    if (!isNavigating) return;
+
+    std::vector<MultiPlaneDetector::Plane> rightPlanes =
+        MultiPlaneDetector::detectMultiplePlanes(rightSensor);
+
+    double wallAngle = -1000.0;
+    for (const auto& plane : rightPlanes) {
+        if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
+            wallAngle = plane.params.azimuth_angle;
+            break;
+        }
+    }
+
+    if (wallAngle != -1000.0) {
+        qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+        double deltaTime = (currentTime - lastUpdateTime) / 1000.0;
+        lastUpdateTime = currentTime;
+
+        double correction = wallPID->calculate(0.0, wallAngle, deltaTime);
+        correction = std::clamp(correction, -30.0, 30.0);
+
+        int leftSpeed = BASE_SPEED;
+        int rightSpeed = BASE_SPEED;
+
+        if (correction > 0) {
+            rightSpeed -= static_cast<int>(correction * 5);
+        } else {
+            leftSpeed += static_cast<int>(correction * 5);
+        }
+
+        leftSpeed = std::clamp(leftSpeed, 0, 400);
+        rightSpeed = std::clamp(rightSpeed, 0, 400);
+
+        serialHandler->setSpeed(leftSpeed);
+        // Użyj metody sendMovementCommand zamiast bezpośredniego wysyłania 'F'
+        sendMovementCommand('F');
+
+        qDebug() << "Following wall - Angle:" << wallAngle
+                 << "Correction:" << correction
+                 << "Speeds L/R:" << leftSpeed << "/" << rightSpeed;
+    } else {
+        searchForWall();
+    }
+}
+
+void AutonomousNav::handleFrontWall() {
+    if (!isNavigating) return;
+
+    if (!isCurrentlyTurning) {
+        qDebug() << "Starting turn sequence";
+        isCurrentlyTurning = true;
+        serialHandler->setSpeed(TURN_SPEED);
+        sendMovementCommand('L');
+        wallPID->reset();
+    }
+}
+
+void AutonomousNav::searchForWall() {
+    if (!isNavigating) return;
+
+    qDebug() << "No wall detected, searching...";
+    serialHandler->setSpeed(150);
+    sendMovementCommand('R');
 }

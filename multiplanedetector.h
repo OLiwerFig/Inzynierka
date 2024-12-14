@@ -41,6 +41,8 @@ public:
         std::vector<Point3D> points;
         int startRow;
         int endRow;
+        int startCol;  // Nowe pole
+        int endCol;    // Nowe pole
         bool isIncreasing;
     };
 
@@ -80,6 +82,7 @@ private:
                                                 double threshold_factor);
     static bool isIncreasingTrend(const std::vector<Point3D>& coords);
     static std::vector<DataSegment> analyzeTrends(const std::vector<Point3D>& coords);
+    static std::vector<DataSegment> analyzeColumnTrends(const std::vector<Point3D>& coords);
 };
 
 

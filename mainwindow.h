@@ -38,12 +38,16 @@ private:
     void initializeMap();
     Map *map;
     void onSpeedSliderChanged(int value);
+       void toggleAutoNavigation();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void timerEvent(QTimerEvent *event) override;
+        bool isAutoNavActive;
     AutonomousNav *autoNav;
+
+
 };
 
 #endif // MAINWINDOW_H

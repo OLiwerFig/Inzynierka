@@ -25,7 +25,7 @@
     <item>
      <layout class="QGridLayout" name="gridLayout_2" columnstretch="3,1,2">
       <item row="0" column="0">
-       <layout class="QVBoxLayout" name="verticalLayout_6" stretch="1,15,1">
+       <layout class="QVBoxLayout" name="verticalLayout_6" stretch="1,10,1">
         <item>
          <layout class="QGridLayout" name="gridLayout_3" rowminimumheight="1,1">
           <item row="0" column="0">
@@ -336,7 +336,7 @@ QComboBox::down-arrow {
        </layout>
       </item>
       <item row="0" column="1">
-       <layout class="QVBoxLayout" name="verticalLayout_7" stretch="1,10,1">
+       <layout class="QVBoxLayout" name="verticalLayout_7" stretch="1,10,5">
         <item>
          <widget class="QLabel" name="SurfaceLabel">
           <property name="styleSheet">
@@ -376,7 +376,7 @@ QComboBox::down-arrow {
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="label">
+         <widget class="QLabel" name="directionLabel">
           <property name="styleSheet">
            <string notr="true">QLabel {
     padding: 5px;

@@ -261,6 +261,97 @@ std::vector<MultiPlaneDetector::DataSegment> MultiPlaneDetector::analyzeTrends(c
     return segments;
 }
 
+
+
+
+std::vector<MultiPlaneDetector::DataSegment> MultiPlaneDetector::analyzeColumnTrends(const std::vector<Point3D>& coords) {
+    std::vector<DataSegment> segments;
+    if (coords.empty()) return segments;
+
+    // Grupowanie punktów według kolumn
+    std::vector<std::vector<Point3D>> columnGroups(8);
+    for (const auto& p : coords) {
+        columnGroups[p.col].push_back(p);
+    }
+
+    // Obliczanie średnich Z dla każdej kolumny
+    std::vector<double> columnAverages(8, 0.0);
+    double maxAverage = 0.0;
+    for (int i = 0; i < 8; i++) {
+        if (!columnGroups[i].empty()) {
+            double sum = 0.0;
+            for (const auto& p : columnGroups[i]) {
+                sum += p.z;
+            }
+            columnAverages[i] = sum / columnGroups[i].size();
+            maxAverage = std::max(maxAverage, std::abs(columnAverages[i]));
+        }
+    }
+
+    const double TREND_CHANGE_THRESHOLD = 0.05;
+    int currentStartCol = 0;
+    bool currentTrend = true;
+
+    for (int i = 1; i < 8; i++) {
+        if (columnGroups[i].empty() || columnGroups[i-1].empty()) continue;
+
+        double diff = columnAverages[i] - columnAverages[i-1];
+        double percentChange = std::abs(diff) / maxAverage;
+        bool newTrend = (diff > 0);
+
+        if (i == 1) {
+            currentTrend = newTrend;
+        } else if (currentTrend != newTrend && percentChange > TREND_CHANGE_THRESHOLD) {
+            DataSegment segment;
+            segment.startCol = currentStartCol;
+            segment.endCol = i-1;
+            segment.startRow = 0;
+            segment.endRow = 7;
+            segment.isIncreasing = currentTrend;
+
+            for (int col = segment.startCol; col <= segment.endCol; col++) {
+                segment.points.insert(
+                    segment.points.end(),
+                    columnGroups[col].begin(),
+                    columnGroups[col].end()
+                    );
+            }
+
+            if (!segment.points.empty()) {
+                segments.push_back(segment);
+            }
+
+            currentStartCol = i;
+            currentTrend = newTrend;
+        }
+    }
+
+    if (currentStartCol < 7) {
+        DataSegment segment;
+        segment.startCol = currentStartCol;
+        segment.endCol = 7;
+        segment.startRow = 0;
+        segment.endRow = 7;
+        segment.isIncreasing = currentTrend;
+
+        for (int col = segment.startCol; col <= segment.endCol; col++) {
+            segment.points.insert(
+                segment.points.end(),
+                columnGroups[col].begin(),
+                columnGroups[col].end()
+                );
+        }
+
+        if (!segment.points.empty()) {
+            segments.push_back(segment);
+        }
+    }
+
+    return segments;
+}
+
+
+
 // Modyfikacja głównej funkcji detectMultiplePlanes
 std::vector<MultiPlaneDetector::Plane> MultiPlaneDetector::detectMultiplePlanes(const QList<QList<int>>& sensorData) {
     std::vector<Plane> detectedPlanes;
@@ -273,12 +364,16 @@ std::vector<MultiPlaneDetector::Plane> MultiPlaneDetector::detectMultiplePlanes(
         return detectedPlanes;
     }
 
-    // Preprocess data
     QList<QList<int>> processedData = Draw::preprocessSensorData(sensorData, 3);
-
-    // Calculate initial coordinates
     std::vector<Point3D> coords = calculateCoordinates(processedData, rotatedAnglesX, rotatedAnglesZ);
+
+    // Próbujemy najpierw analizę wierszy
     std::vector<DataSegment> segments = analyzeTrends(coords);
+
+    // Jeśli nie znaleziono segmentów lub znaleziono tylko jeden, próbujemy analizę kolumn
+    if (segments.size() <= 1) {
+        segments = analyzeColumnTrends(coords);
+    }
 
     // Dla każdego segmentu wykonaj dopasowanie płaszczyzny
     for (const auto& segment : segments) {

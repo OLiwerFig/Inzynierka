@@ -28,6 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     , gridPixmapItem(nullptr)
     , translator(new QTranslator(this))
     , map(nullptr)
+    , isAutoNavActive(false)
 
 {
 
@@ -124,17 +125,12 @@ MainWindow::MainWindow(QWidget *parent)
         serialPortHandler->setSpeed(value);
     });
 
-    autoNav = new AutonomousNav(serialPortHandler, this);
 
-    connect(ui->autoNavButton, &QPushButton::clicked, this, [this]() {
-        static bool isActive = false;
-        isActive = !isActive;
-        if (isActive) {
-            autoNav->startNavigation();
-        } else {
-            autoNav->stopNavigation();
-        }
-    });
+    autoNav = new AutonomousNav(serialPortHandler, ui->directionLabel, this);
+
+    // Połączenie przycisku autoNavButton z nowym slotem
+    connect(ui->autoNavButton, &QPushButton::clicked, this, &MainWindow::toggleAutoNavigation);
+
 
 
     serialPortHandler->connectSerialPort(ui->comboBoxSerialPorts->currentText());
@@ -145,6 +141,35 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
     ui->graphicsView->fitInView(scene->sceneRect(), Qt::KeepAspectRatioByExpanding);
     if (map) {
         map->scaleSceneToFitView();
+    }
+}
+
+void MainWindow::toggleAutoNavigation() {
+    isAutoNavActive = !isAutoNavActive;
+
+    if (isAutoNavActive) {
+        ui->autoNavButton->setText("Stop");
+        autoNav->startNavigation();
+
+        // Wyłączenie manualnych przycisków (opcjonalnie)
+        // Jeśli chcesz, aby manualne kontrole były nadal dostępne, usuń poniższe linie
+        /*
+        ui->upButton->setEnabled(false);
+        ui->downButton->setEnabled(false);
+        ui->leftButton->setEnabled(false);
+        ui->rightButton->setEnabled(false);
+        */
+    } else {
+        ui->autoNavButton->setText("Start");
+        autoNav->stopNavigation();
+
+        // Włączenie manualnych przycisków (opcjonalnie)
+        /*
+        ui->upButton->setEnabled(true);
+        ui->downButton->setEnabled(true);
+        ui->leftButton->setEnabled(true);
+        ui->rightButton->setEnabled(true);
+        */
     }
 }
 
