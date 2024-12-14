@@ -2,6 +2,7 @@
 #include "multiplanedetector.h"
 #include <QDebug>
 #include <algorithm>
+#include <QTimer>
 
 // Implementacja PIDController
 PIDController::PIDController(double kp, double ki, double kd)
@@ -30,6 +31,10 @@ AutonomousNav::AutonomousNav(serialport* serial, QLabel* label, QObject *parent)
     , isCurrentlyTurning(false)
     , lastUpdateTime(QDateTime::currentMSecsSinceEpoch())
     , lastMovementCommand('S') // Inicjalizacja do 'S' (Stop)
+    , decelerationTimer(new QTimer(this))
+    , currentSpeed(BASE_SPEED) // Ustawienie początkowej prędkości
+    , decelerationStep(50)     // Krok dekrementacji prędkości (możesz dostosować)
+    , minimumSpeed(0)          // Minimalna prędkość
 {
     connect(serialHandler, &serialport::serialDataReceived,
             this, &AutonomousNav::onNewSensorData);
@@ -38,7 +43,35 @@ AutonomousNav::AutonomousNav(serialport* serial, QLabel* label, QObject *parent)
         directionLabel->clear();
         lastCommands.clear();
     }
+
+    // Konfiguracja timera dekrementacji prędkości
+    connect(decelerationTimer, &QTimer::timeout, this, &AutonomousNav::performDeceleration);
 }
+
+
+void AutonomousNav::performDeceleration() {
+    if (currentSpeed > minimumSpeed) {
+        currentSpeed -= decelerationStep;
+        if (currentSpeed < minimumSpeed) {
+            currentSpeed = minimumSpeed;
+        }
+
+        // Aktualizacja prędkości na serialHandler
+        serialHandler->setSpeed(currentSpeed);
+        qDebug() << "Decelerating... Current speed:" << currentSpeed;
+
+        // Opcjonalnie, możesz aktualizować etykietę kierunku
+        updateDirectionLabel('F'); // Zakładając, że 'F' oznacza jazdę do przodu
+
+    } else {
+        // Prędkość osiągnęła zero, zatrzymujemy dekrementację
+        decelerationTimer->stop();
+        sendMovementCommand('S');
+        qDebug() << "Robot zatrzymany płynnie.";
+    }
+}
+
+
 
 void AutonomousNav::startNavigation() {
     isNavigating = true;
@@ -46,8 +79,12 @@ void AutonomousNav::startNavigation() {
     wallPID->reset();
     lastCommands.clear();
     lastUpdateTime = QDateTime::currentMSecsSinceEpoch();
+    currentSpeed = BASE_SPEED; // Reset prędkości do podstawowej wartości
+    serialHandler->setSpeed(currentSpeed);
+    sendMovementCommand('F'); // Rozpoczęcie jazdy do przodu
     qDebug() << "Autonomous navigation started";
 }
+
 
 void AutonomousNav::stopNavigation() {
     if (!isNavigating) {
@@ -57,6 +94,9 @@ void AutonomousNav::stopNavigation() {
 
     isNavigating = false;
     isCurrentlyTurning = false;
+
+    decelerationTimer->start(100);
+
     serialHandler->setSpeed(0); // Ustawienie prędkości na 0
     sendMovementCommand('S');
     wallPID->reset();
@@ -249,7 +289,7 @@ void AutonomousNav::followWallSequence(
         lastUpdateTime = currentTime;
 
         double correction = wallPID->calculate(0.0, wallAngle, deltaTime);
-        correction = std::clamp(correction, -30.0, 30.0);
+        correction = std::clamp(correction, -10.0, 10.0);
 
         int leftSpeed = BASE_SPEED;
         int rightSpeed = BASE_SPEED;

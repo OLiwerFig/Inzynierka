@@ -336,7 +336,7 @@ QComboBox::down-arrow {
        </layout>
       </item>
       <item row="0" column="1">
-       <layout class="QVBoxLayout" name="verticalLayout_7" stretch="1,10,5">
+       <layout class="QVBoxLayout" name="verticalLayout_7" stretch="1,10,2">
         <item>
          <widget class="QLabel" name="SurfaceLabel">
           <property name="styleSheet">
