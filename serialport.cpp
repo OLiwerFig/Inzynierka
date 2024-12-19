@@ -30,14 +30,20 @@ serialport::serialport(QObject *parent) : QObject(parent)
     });
 }
 
-void serialport::sendMovementCommand(char command) {
+void serialport::sendMovementCommand(char command, int leftSpeed, int rightSpeed) {
     if (serialPort->isOpen()) {
-        // Format: $CMD,SPEED#
+        // Jeśli nie podano konkretnych prędkości, użyj aktualnych wartości
+        if (leftSpeed == -1) leftSpeed = currentSpeedLeft;
+        if (rightSpeed == -1) rightSpeed = currentSpeedRight;
+
+        // Format: $CMD,SPEEDL,SPEEDR#
         QByteArray data;
-        data.append('$');  // Znacznik początku
-        data.append(command);  // Komenda ruchu (F/B/L/R/S)
+        data.append('$');                                    // Znacznik początku
+        data.append(command);                               // Komenda ruchu (F/B/L/R/S)
         data.append(',');
-        data.append(QString::number(currentSpeed).toUtf8());  // Prędkość
+        data.append(QString::number(leftSpeed).toUtf8());   // Prędkość lewego silnika
+        data.append(',');
+        data.append(QString::number(rightSpeed).toUtf8());  // Prędkość prawego silnika
         data.append('#');
         data.append('\n');
 
