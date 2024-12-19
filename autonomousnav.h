@@ -34,7 +34,7 @@ public:
 private:
 
 
-
+    void adjustAlignment();
 
     QString logsDirectory;        // Katalog na pliki logów
     QString currentLogFileName;   // Nazwa aktualnego pliku logów
@@ -59,10 +59,10 @@ private:
     QList<QString> lastCommands;  // Bufor ostatnich poleceń
 
     // Stałe konfiguracyjne
-    static constexpr int SAFE_DISTANCE = 120;          // mm
+    static constexpr int SAFE_DISTANCE = 100;          // mm
     static constexpr int FRONT_WALL_DISTANCE = 100;    // mm
-    static constexpr int BASE_SPEED = 400;             // Prędkość podstawowa
-    static constexpr int TURN_SPEED = 300;             // Prędkość skrętu
+    static constexpr int BASE_SPEED = 200;             // Prędkość podstawowa
+    static constexpr int TURN_SPEED = 100;             // Prędkość skrętu
 
     // Mapowanie komend
     const QMap<char, QString> commandDescriptions = {

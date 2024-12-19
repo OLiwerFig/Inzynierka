@@ -107,6 +107,46 @@ void AutonomousNav::startNavigation() {
 }
 
 
+void AutonomousNav::adjustAlignment() {
+    auto rightSensor = serialHandler->sensorLastData['B'];
+    if (rightSensor.isEmpty()) {
+        qDebug() << "Brak danych z prawego czujnika. Nie mogę dostosować pozycji.";
+        return;
+    }
+
+    std::vector<MultiPlaneDetector::Plane> rightPlanes =
+        MultiPlaneDetector::detectMultiplePlanes(rightSensor);
+
+    double targetAzimuthMin = -10.0;
+    double targetAzimuthMax = 10.0;
+    bool needsAdjustment = false;
+    double azimuth = 0.0;
+
+    for (const auto& plane : rightPlanes) {
+        if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
+            azimuth = plane.params.azimuth_angle;
+            qDebug() << "Dostosowuję pozycję: Azimuth prawa = " << azimuth;
+            if (azimuth < targetAzimuthMin) {
+                needsAdjustment = true;
+                sendMovementCommand('R'); // Skręt w prawo
+                qDebug() << "Azimuth za niski. Skręcam w prawo.";
+                break;
+            } else if (azimuth > targetAzimuthMax) {
+                needsAdjustment = true;
+                sendMovementCommand('L'); // Skręt w lewo
+                qDebug() << "Azimuth za wysoki. Skręcam w lewo.";
+                break;
+            }
+        }
+    }
+
+    if (!needsAdjustment) {
+        qDebug() << "Alignment within target azimuth range.";
+        // Możesz zdecydować, co zrobić, gdy alignment jest poprawny
+    }
+}
+
+
 void AutonomousNav::stopNavigation() {
     if (!isNavigating) {
         qDebug() << "Próba zatrzymania nawigacji, ale nie jest aktywna.";
@@ -155,15 +195,21 @@ void AutonomousNav::onNewSensorData() {
     }
 
     auto rightSensor = serialHandler->sensorLastData['B'];
-    if (rightSensor.isEmpty()) {
+    auto frontSensor = serialHandler->sensorLastData['C']; // Dodanie frontSensor
+
+    if (rightSensor.isEmpty() || frontSensor.isEmpty()) {
+        qDebug() << "Brak pełnych danych z czujników.";
         return;
     }
+
+    // Logowanie surowych danych z czujników
+    qDebug() << "Surowe dane z czujnika prawego (B):" << rightSensor;
+    qDebug() << "Surowe dane z czujnika przedniego (C):" << frontSensor;
 
     // Analiza danych z czujnika prawego (B)
     std::vector<MultiPlaneDetector::Plane> rightPlanes =
         MultiPlaneDetector::detectMultiplePlanes(rightSensor);
 
-    // Szukamy pierwszej płaszczyzny pionowej
     for (const auto& plane : rightPlanes) {
         if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
             double currentAzimuthB = plane.params.azimuth_angle;
@@ -185,9 +231,19 @@ void AutonomousNav::onNewSensorData() {
         }
     }
 
+
+
+    // Analiza danych z czujnika przedniego (C)
+    std::vector<MultiPlaneDetector::Plane> frontPlanes =
+        MultiPlaneDetector::detectMultiplePlanes(frontSensor);
+
+
+
     // Kontynuacja standardowego przetwarzania nawigacji
     processNavigationStep();
 }
+
+
 
 
 void AutonomousNav::updateDirectionLabel(char command) {
@@ -244,6 +300,7 @@ void AutonomousNav::processNavigationStep() {
     }
 }
 
+
 bool AutonomousNav::checkFrontCollisionRisk(const QList<QList<int>>& frontSensor) {
     //qDebug() << "Checking front collision risk.";
     // Detect multiple planes in frontSensor
@@ -268,57 +325,75 @@ void AutonomousNav::handleTurningSequence(
     const QList<QList<int>>& frontSensor) {
 
     if (!isNavigating || !isCurrentlyTurning) {
-        //qDebug() << "Not navigating or not currently turning.";
+        qDebug() << "Nie nawiguję lub nie jestem w trakcie skrętu.";
         return;
     }
 
-    std::vector<MultiPlaneDetector::Plane> rightPlanes =
-        MultiPlaneDetector::detectMultiplePlanes(rightSensor);
+    // Analiza płaszczyzn z czujnika przedniego
+    bool frontAzimuthInRange = false;
+    bool frontDInRange = false;
+    std::vector<MultiPlaneDetector::Plane> frontPlanes =
+        MultiPlaneDetector::detectMultiplePlanes(frontSensor);
 
-    bool foundGoodAngle = false;
-    for (const auto& plane : rightPlanes) {
+    qDebug() << "Wykryte płaszczyzny przednie: " << frontPlanes.size();
+
+    for (const auto& plane : frontPlanes) {
+        QString typeStr = (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) ? "VERTICAL" :
+                              (plane.type == MultiPlaneDetector::PlaneType::HORIZONTAL) ? "HORIZONTAL" : "OTHER";
+        qDebug() << "Detected plane type:" << typeStr;
+
         if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
             double angle = plane.params.azimuth_angle;
-            //qDebug() << "Turn sequence - right sensor angle:" << angle;
+            double d = std::abs(plane.params.d);
+            qDebug() << "Sprawdzam płaszczyznę przednią podczas skrętu: Azimuth =" << angle << ", d =" << d;
 
-            if (angle >= -10 && angle <= 10) {
-                foundGoodAngle = true;
+            // Warunek zakończenia skrętu
+            if (angle >= -15.0 && angle <= 15.0 && d < 150.0) {
+                frontAzimuthInRange = true;
+                frontDInRange = true;
+                qDebug() << "Warunki stopu spełnione: Azimuth =" << angle << ", d =" << d;
                 break;
             }
         }
     }
 
-    bool pathClear = true;
-    std::vector<MultiPlaneDetector::Plane> frontPlanes =
-        MultiPlaneDetector::detectMultiplePlanes(frontSensor);
+    // Dodatkowy warunek: sprawdzenie, czy płaszczyzna na prawej stronie ma azymut bliski -10 do 10
+    bool rightAzimuthInRange = false;
+    std::vector<MultiPlaneDetector::Plane> rightPlanes =
+        MultiPlaneDetector::detectMultiplePlanes(rightSensor);
 
-    for (const auto& plane : frontPlanes) {
-        if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL &&
-            std::abs(plane.params.d) < SAFE_DISTANCE) {
-            pathClear = false;
-            break;
+    for (const auto& plane : rightPlanes) {
+        if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
+            double angle = plane.params.azimuth_angle;
+            if (angle >= -10.0 && angle <= 10.0) {
+                rightAzimuthInRange = true;
+                qDebug() << "Azimuth płaszczyzny prawej strony w zakresie: " << angle;
+                break;
+            }
         }
     }
 
-    if (foundGoodAngle && pathClear) {
-        qDebug() << "Turn complete - found good angle and path is clear.";
+    // Decyzja o zakończeniu skrętu
+    if (frontAzimuthInRange || rightAzimuthInRange) {
+        qDebug() << "Zakończono skręt. Warunki zostały spełnione.";
         isCurrentlyTurning = false;
         wallPID->reset();
-        // Opcjonalnie: Wysłanie polecenia dojazdu do przodu po zakończeniu skrętu
-        sendMovementCommand('F');
+        sendMovementCommand('F'); // Powrót do jazdy do przodu
     } else {
+        qDebug() << "Kontynuuję skręt w lewo. Szukam dobrego ustawienia.";
         // Kontynuacja skrętu w lewo
         serialHandler->setSpeed(TURN_SPEED);
         sendMovementCommand('L');
     }
 }
 
+
 void AutonomousNav::followWallSequence(
     const QList<QList<int>>& leftSensor,
     const QList<QList<int>>& rightSensor) {
 
     if (!isNavigating) {
-        //qDebug() << "Not navigating. Exiting followWallSequence.";
+        qDebug() << "Nie nawiguję. Kończę śledzenie ściany.";
         return;
     }
 
@@ -329,53 +404,95 @@ void AutonomousNav::followWallSequence(
     for (const auto& plane : rightPlanes) {
         if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
             wallAngle = plane.params.azimuth_angle;
+            qDebug() << "Ściana prawa - Azimuth =" << wallAngle;
             break;
         }
     }
 
     if (wallAngle != -1000.0) {
-        qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-        double deltaTime = (currentTime - lastUpdateTime) / 1000.0;
-        lastUpdateTime = currentTime;
+        // Sprawdzenie, czy azymut jest w zakresie [-10°, +10°]
+        if (wallAngle < -10.0 || wallAngle > 10.0) {
+            qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+            double deltaTime = (currentTime - lastUpdateTime) / 1000.0;
+            lastUpdateTime = currentTime;
 
-        double correction = wallPID->calculate(0.0, wallAngle, deltaTime);
-        correction = std::clamp(correction, -10.0, 10.0);
+            double correction = wallPID->calculate(0.0, wallAngle, deltaTime);
+            correction = std::clamp(correction, -10.0, 10.0); // Ograniczenie korekcji
 
-        int leftSpeed = BASE_SPEED;
-        int rightSpeed = BASE_SPEED;
+            int leftSpeed = BASE_SPEED;
+            int rightSpeed = BASE_SPEED;
 
-        if (correction > 0) {
-            rightSpeed -= static_cast<int>(correction * 5);
+            if (correction > 0) {
+                rightSpeed -= static_cast<int>(correction * 5);
+                qDebug() << "Korekcja PID pozytywna. Skręcam w prawo.";
+            } else {
+                leftSpeed += static_cast<int>(-correction * 5);
+                qDebug() << "Korekcja PID negatywna. Skręcam w lewo.";
+            }
+
+            leftSpeed = std::clamp(leftSpeed, 0, 400);
+            rightSpeed = std::clamp(rightSpeed, 0, 400);
+
+            serialHandler->setSpeed(leftSpeed);
+            sendMovementCommand('F');
+
+            qDebug() << "Śledzenie ściany - Azimuth:" << wallAngle
+                     << "Korekcja:" << correction
+                     << "Prędkości L/R:" << leftSpeed << "/" << rightSpeed;
         } else {
-            leftSpeed += static_cast<int>(correction * 5);
+            qDebug() << "Kąt ściany w zakresie docelowym. Nie wymaga korekty.";
+            // Możesz zdecydować, czy wysłać polecenie do jazdy prosto
+            sendMovementCommand('F');
         }
-
-        leftSpeed = std::clamp(leftSpeed, 0, 400);
-        rightSpeed = std::clamp(rightSpeed, 0, 400);
-
-        serialHandler->setSpeed(leftSpeed);
-        sendMovementCommand('F');
-
-        //qDebug() << "Following wall - Angle:" << wallAngle
-        //         << "Correction:" << correction
-        //         << "Speeds L/R:" << leftSpeed << "/" << rightSpeed;
     } else {
+        qDebug() << "Nie wykryto ściany prawej. Szukam ściany.";
         searchForWall();
     }
 }
 
+
+
+
 void AutonomousNav::handleFrontWall() {
     if (!isNavigating) {
-        //qDebug() << "Not navigating. Cannot handle front wall.";
+        qDebug() << "Nie nawiguję. Nie mogę obsłużyć frontowej ściany.";
         return;
     }
 
     if (!isCurrentlyTurning) {
-        qDebug() << "Starting turn sequence due to front wall.";
-        isCurrentlyTurning = true;
-        serialHandler->setSpeed(TURN_SPEED);
-        sendMovementCommand('L');
-        wallPID->reset();
+        // Sprawdzenie warunków na czujniku przednim
+        bool frontAzimuthInRange = false;
+        bool frontDInRange = false;
+        auto frontSensor = serialHandler->sensorLastData['C']; // Zakładam, że 'C' to czujnik przedni
+        if (!frontSensor.isEmpty()) {
+            std::vector<MultiPlaneDetector::Plane> frontPlanes =
+                MultiPlaneDetector::detectMultiplePlanes(frontSensor);
+            for (const auto& plane : frontPlanes) {
+                if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
+                    double angle = plane.params.azimuth_angle;
+                    double d = std::abs(plane.params.d); // Upewniamy się, że d jest dodatnie
+                    qDebug() << "Sprawdzam płaszczyznę przednią: Azimuth =" << angle << ", d =" << d;
+                    if (angle >= -15.0 && angle <= 15.0 && d < 120.0) {
+                        frontAzimuthInRange = true;
+                        frontDInRange = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Decyzja o skręcie
+        if (frontAzimuthInRange && frontDInRange) {
+            qDebug() << "Warunki do skrętu spełnione. Rozpoczynam skręt w lewo.";
+            isCurrentlyTurning = true;
+            serialHandler->setSpeed(TURN_SPEED);
+            sendMovementCommand('L'); // Skręt w lewo, można dostosować do potrzeb
+            wallPID->reset();
+        } else {
+            qDebug() << "Warunki do skrętu niespełnione. Dostosowuję pozycję.";
+            // Inicjalizacja korekty pozycji bez pełnego skrętu
+            adjustAlignment();
+        }
     }
 }
 
