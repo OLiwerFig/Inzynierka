@@ -3,6 +3,8 @@
 #include <QDebug>
 #include <algorithm>
 #include <QTimer>
+#include <QFile>
+#include <QTextStream>
 
 // Implementacja PIDController
 PIDController::PIDController(double kp, double ki, double kd)
@@ -35,6 +37,7 @@ AutonomousNav::AutonomousNav(serialport* serial, QLabel* label, QObject *parent)
     , currentSpeed(BASE_SPEED) // Ustawienie początkowej prędkości
     , decelerationStep(50)     // Krok dekrementacji prędkości (możesz dostosować)
     , minimumSpeed(0)          // Minimalna prędkość
+    , lastAzimuthB(0.0)        // Inicjalizacja ostatniego kąta azymutu
 {
     connect(serialHandler, &serialport::serialDataReceived,
             this, &AutonomousNav::onNewSensorData);
@@ -48,31 +51,6 @@ AutonomousNav::AutonomousNav(serialport* serial, QLabel* label, QObject *parent)
     connect(decelerationTimer, &QTimer::timeout, this, &AutonomousNav::performDeceleration);
 }
 
-
-void AutonomousNav::performDeceleration() {
-    if (currentSpeed > minimumSpeed) {
-        currentSpeed -= decelerationStep;
-        if (currentSpeed < minimumSpeed) {
-            currentSpeed = minimumSpeed;
-        }
-
-        // Aktualizacja prędkości na serialHandler
-        serialHandler->setSpeed(currentSpeed);
-        qDebug() << "Decelerating... Current speed:" << currentSpeed;
-
-        // Opcjonalnie, możesz aktualizować etykietę kierunku
-        updateDirectionLabel('F'); // Zakładając, że 'F' oznacza jazdę do przodu
-
-    } else {
-        // Prędkość osiągnęła zero, zatrzymujemy dekrementację
-        decelerationTimer->stop();
-        sendMovementCommand('S');
-        qDebug() << "Robot zatrzymany płynnie.";
-    }
-}
-
-
-
 void AutonomousNav::startNavigation() {
     isNavigating = true;
     isCurrentlyTurning = false;
@@ -83,6 +61,20 @@ void AutonomousNav::startNavigation() {
     serialHandler->setSpeed(currentSpeed);
     sendMovementCommand('F'); // Rozpoczęcie jazdy do przodu
     qDebug() << "Autonomous navigation started";
+
+    // Inicjalizacja logowania kątów
+    QString logFileName = "navigation_log.txt";
+    logFile.setFileName(logFileName);
+    if (logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        logStream.setDevice(&logFile);
+        logStream << "Timestamp(ms),AzimuthB(degrees)\n"; // Nagłówki
+        qDebug() << "Logging started to" << logFileName;
+    } else {
+        qDebug() << "Failed to open log file:" << logFileName;
+    }
+
+    // Reset ostatniego kąta azymutu
+    lastAzimuthB = 0.0;
 }
 
 
@@ -103,6 +95,13 @@ void AutonomousNav::stopNavigation() {
     updateDirectionLabel('S');
     qDebug() << "Autonomous navigation stopped";
 
+    // Zamknięcie pliku logów
+    if (logFile.isOpen()) {
+        logStream.flush();
+        logFile.close();
+        qDebug() << "Logging stopped and file closed.";
+    }
+
     // Opcjonalnie: Wysłanie kilku sygnałów 'S' aby upewnić się, że robot zatrzyma się
     for(int i = 0; i < 5; ++i) {
         QTimer::singleShot(i * 100, this, [this]() {
@@ -111,6 +110,7 @@ void AutonomousNav::stopNavigation() {
         });
     }
 }
+
 
 void AutonomousNav::sendMovementCommand(char command) {
     if (command != lastMovementCommand) {
@@ -137,8 +137,34 @@ void AutonomousNav::onNewSensorData() {
         return;
     }
 
+    // Logowanie kąta azymutu dla czujnika B
+    std::vector<MultiPlaneDetector::Plane> rightPlanes = MultiPlaneDetector::detectMultiplePlanes(rightSensor);
+
+    // Załóżmy, że interesuje nas pierwsza wykryta płaszczyzna pionowa
+    double currentAzimuthB = lastAzimuthB;
+    for (const auto& plane : rightPlanes) {
+        if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
+            currentAzimuthB = plane.params.azimuth_angle;
+            break;
+        }
+    }
+
+    // Sprawdzenie, czy kąt azymutu się zmienił
+    const double AZIMUTH_THRESHOLD = 1.0; // Próg zmiany w stopniach
+    if (std::abs(currentAzimuthB - lastAzimuthB) > AZIMUTH_THRESHOLD) {
+        lastAzimuthB = currentAzimuthB;
+        qint64 timestamp = QDateTime::currentMSecsSinceEpoch();
+        if (logFile.isOpen()) {
+            logStream << timestamp << "," << lastAzimuthB << "\n";
+            logStream.flush(); // Upewnienie się, że dane są zapisywane na bieżąco
+            qDebug() << "AzimuthB changed. Timestamp:" << timestamp << "AzimuthB:" << lastAzimuthB;
+        }
+    }
+
+    // Kontynuacja przetwarzania danych nawigacji
     processNavigationStep();
 }
+
 
 void AutonomousNav::updateDirectionLabel(char command) {
     if (!directionLabel) return;
@@ -338,4 +364,26 @@ void AutonomousNav::searchForWall() {
     qDebug() << "No wall detected, searching...";
     serialHandler->setSpeed(150);
     sendMovementCommand('R');
+}
+
+void AutonomousNav::performDeceleration() {
+    if (currentSpeed > minimumSpeed) {
+        currentSpeed -= decelerationStep;
+        if (currentSpeed < minimumSpeed) {
+            currentSpeed = minimumSpeed;
+        }
+
+        // Aktualizacja prędkości na serialHandler
+        serialHandler->setSpeed(currentSpeed);
+        qDebug() << "Decelerating... Current speed:" << currentSpeed;
+
+        // Opcjonalnie, możesz aktualizować etykietę kierunku
+        updateDirectionLabel('F'); // Zakładając, że 'F' oznacza jazdę do przodu
+
+    } else {
+        // Prędkość osiągnęła zero, zatrzymujemy dekrementację
+        decelerationTimer->stop();
+        sendMovementCommand('S');
+        qDebug() << "Robot zatrzymany płynnie.";
+    }
 }

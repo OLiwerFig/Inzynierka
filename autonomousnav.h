@@ -7,6 +7,8 @@
 #include <QLabel>
 #include "serialport.h"
 #include <QTimer>
+#include <QFile>
+#include <QTextStream>
 
 class PIDController {
 public:
@@ -27,6 +29,11 @@ public:
     void stopNavigation();
 
 private:
+
+    QFile logFile;              // Plik logów
+    QTextStream logStream;      // Strumień tekstowy do zapisu
+    double lastAzimuthB;        // Ostatni znany kąt azymutu dla czujnika B
+
     // Komponenty
     serialport* serialHandler;
     PIDController* wallPID;
@@ -73,8 +80,6 @@ private:
     // Funkcja pomocnicza do wysyłania poleceń ruchu
     void sendMovementCommand(char command);
 
-
-
     QTimer* decelerationTimer;
     int currentSpeed;
     int decelerationStep;
@@ -82,6 +87,8 @@ private:
 
     // Metoda pomocnicza do dekrementacji prędkości
     void performDeceleration();
+
+
 
 public slots:
     void onNewSensorData();

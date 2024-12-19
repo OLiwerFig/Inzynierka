@@ -1,3 +1,5 @@
+
+
 QT       += core gui
 QT       += core gui serialport
 QT       += core gui charts
