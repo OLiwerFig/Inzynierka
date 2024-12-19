@@ -86,6 +86,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->MapGraphicsView->setMinimumSize(600, 600);
     ui->graphicsView->setMinimumSize(600, 600);
 
+    ui->AngleLabel->setMinimumSize(600, 200);
+    ui->AngleLabel->setMinimumSize(600, 200);
+
     ui->FlagiComboBox->addItem("Czujnik 1");
     ui->FlagiComboBox->addItem("Czujnik 2");
     ui->FlagiComboBox->addItem("Czujnik 3");
@@ -134,6 +137,13 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     serialPortHandler->connectSerialPort(ui->comboBoxSerialPorts->currentText());
+
+    connect(serialPortHandler, &serialport::activeSensorCountChanged,
+            this, &MainWindow::updateSensorCount);
+
+    // Inicjalizacja etykiety
+    ui->activeSensorsLabel->setText("Sensors: 0/3");
+
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
@@ -170,6 +180,13 @@ void MainWindow::toggleAutoNavigation() {
         ui->leftButton->setEnabled(true);
         ui->rightButton->setEnabled(true);
         */
+    }
+}
+
+
+void MainWindow::updateSensorCount(int count) {
+    if (ui->activeSensorsLabel) {
+        ui->activeSensorsLabel->setText(QString("Sensors: %1/3").arg(count));
     }
 }
 

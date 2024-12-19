@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QFile>
 #include <QTextStream>
+#include <QCoreApplication>
 
 // Implementacja PIDController
 PIDController::PIDController(double kp, double ki, double kd)
@@ -27,17 +28,18 @@ void PIDController::reset() {
 AutonomousNav::AutonomousNav(serialport* serial, QLabel* label, QObject *parent)
     : QObject(parent)
     , serialHandler(serial)
-    , wallPID(new PIDController(0.8, 0.1, 0.3)) // Ustawienie domyślnych wartości PID
+    , wallPID(new PIDController(0.8, 0.1, 0.3))
     , directionLabel(label)
     , isNavigating(false)
     , isCurrentlyTurning(false)
     , lastUpdateTime(QDateTime::currentMSecsSinceEpoch())
-    , lastMovementCommand('S') // Inicjalizacja do 'S' (Stop)
+    , lastMovementCommand('S')
     , decelerationTimer(new QTimer(this))
-    , currentSpeed(BASE_SPEED) // Ustawienie początkowej prędkości
-    , decelerationStep(50)     // Krok dekrementacji prędkości (możesz dostosować)
-    , minimumSpeed(0)          // Minimalna prędkość
-    , lastAzimuthB(0.0)        // Inicjalizacja ostatniego kąta azymutu
+    , currentSpeed(BASE_SPEED)
+    , decelerationStep(50)
+    , minimumSpeed(0)
+    , lastAzimuthB(0.0)
+    , logsDirectory("navigation_logs")  // Domyślny katalog na logi
 {
     connect(serialHandler, &serialport::serialDataReceived,
             this, &AutonomousNav::onNewSensorData);
@@ -47,9 +49,45 @@ AutonomousNav::AutonomousNav(serialport* serial, QLabel* label, QObject *parent)
         lastCommands.clear();
     }
 
+    QDir dir;
+    if (!dir.exists(logsDirectory)) {
+        dir.mkpath(logsDirectory);
+    }
+
     // Konfiguracja timera dekrementacji prędkości
     connect(decelerationTimer, &QTimer::timeout, this, &AutonomousNav::performDeceleration);
 }
+
+void AutonomousNav::initializeLogging() {
+    // Uzyskaj ścieżkę do katalogu aplikacji
+    QString appPath = QCoreApplication::applicationDirPath();
+
+    // Utwórz pełną ścieżkę do katalogu logów
+    logsDirectory = appPath + "/navigation_logs";
+
+    // Utwórz katalog jeśli nie istnieje
+    QDir dir;
+    if (!dir.exists(logsDirectory)) {
+        dir.mkpath(logsDirectory);
+    }
+
+    // Generowanie nazwy pliku
+    QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+    currentLogFileName = QString("%1/azimuth_log_%2.csv")
+                             .arg(logsDirectory)
+                             .arg(timestamp);
+
+    logFile.setFileName(currentLogFileName);
+    if (logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        logStream.setDevice(&logFile);
+        logStream << "Timestamp,AzimuthB(degrees)\n"; // Nagłówki
+        qDebug() << "Pełna ścieżka do pliku logów:" << QDir::toNativeSeparators(currentLogFileName);
+        qDebug() << "Katalog z logami znajduje się w:" << QDir::toNativeSeparators(logsDirectory);
+    } else {
+        qDebug() << "Błąd podczas otwierania pliku logów:" << currentLogFileName;
+    }
+}
+
 
 void AutonomousNav::startNavigation() {
     isNavigating = true;
@@ -57,111 +95,97 @@ void AutonomousNav::startNavigation() {
     wallPID->reset();
     lastCommands.clear();
     lastUpdateTime = QDateTime::currentMSecsSinceEpoch();
-    currentSpeed = BASE_SPEED; // Reset prędkości do podstawowej wartości
+    currentSpeed = BASE_SPEED;
     serialHandler->setSpeed(currentSpeed);
-    sendMovementCommand('F'); // Rozpoczęcie jazdy do przodu
-    qDebug() << "Autonomous navigation started";
+    sendMovementCommand('F');
 
-    // Inicjalizacja logowania kątów
-    QString logFileName = "navigation_log.txt";
-    logFile.setFileName(logFileName);
-    if (logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        logStream.setDevice(&logFile);
-        logStream << "Timestamp(ms),AzimuthB(degrees)\n"; // Nagłówki
-        qDebug() << "Logging started to" << logFileName;
-    } else {
-        qDebug() << "Failed to open log file:" << logFileName;
-    }
-
-    // Reset ostatniego kąta azymutu
+    // Inicjalizacja logowania
+    initializeLogging();
     lastAzimuthB = 0.0;
+
+    qDebug() << "Autonomous navigation started";
 }
 
 
 void AutonomousNav::stopNavigation() {
     if (!isNavigating) {
-        qDebug() << "Attempted to stop navigation, but it was not active.";
+        qDebug() << "Próba zatrzymania nawigacji, ale nie jest aktywna.";
         return;
     }
 
     isNavigating = false;
     isCurrentlyTurning = false;
-
     decelerationTimer->start(100);
-
-    serialHandler->setSpeed(0); // Ustawienie prędkości na 0
+    serialHandler->setSpeed(0);
     sendMovementCommand('S');
     wallPID->reset();
     updateDirectionLabel('S');
-    qDebug() << "Autonomous navigation stopped";
 
     // Zamknięcie pliku logów
     if (logFile.isOpen()) {
         logStream.flush();
         logFile.close();
-        qDebug() << "Logging stopped and file closed.";
+        qDebug() << "Logowanie zatrzymane i plik zamknięty:" << currentLogFileName;
     }
 
-    // Opcjonalnie: Wysłanie kilku sygnałów 'S' aby upewnić się, że robot zatrzyma się
+    // Opcjonalne wysłanie dodatkowych sygnałów stop
     for(int i = 0; i < 5; ++i) {
         QTimer::singleShot(i * 100, this, [this]() {
             sendMovementCommand('S');
-            qDebug() << "Sent stop command 'S'";
         });
     }
 }
+
 
 
 void AutonomousNav::sendMovementCommand(char command) {
     if (command != lastMovementCommand) {
         serialHandler->sendMovementCommand(command);
         lastMovementCommand = command;
-        qDebug() << "Sent movement command:" << command;
+        //qDebug() << "Sent movement command:" << command;
         updateDirectionLabel(command);
     } else {
-        qDebug() << "Movement command '" << command << "' already sent. Skipping.";
+        //qDebug() << "Movement command '" << command << "' already sent. Skipping.";
     }
 }
 
 void AutonomousNav::onNewSensorData() {
     if (!isNavigating) {
-        qDebug() << "Received sensor data, but navigation is stopped.";
         return;
     }
 
-    auto leftSensor = serialHandler->sensorLastData['A'];
     auto rightSensor = serialHandler->sensorLastData['B'];
-    auto frontSensor = serialHandler->sensorLastData['C'];
-
-    if (leftSensor.isEmpty() || rightSensor.isEmpty() || frontSensor.isEmpty()) {
+    if (rightSensor.isEmpty()) {
         return;
     }
 
-    // Logowanie kąta azymutu dla czujnika B
-    std::vector<MultiPlaneDetector::Plane> rightPlanes = MultiPlaneDetector::detectMultiplePlanes(rightSensor);
+    // Analiza danych z czujnika prawego (B)
+    std::vector<MultiPlaneDetector::Plane> rightPlanes =
+        MultiPlaneDetector::detectMultiplePlanes(rightSensor);
 
-    // Załóżmy, że interesuje nas pierwsza wykryta płaszczyzna pionowa
-    double currentAzimuthB = lastAzimuthB;
+    // Szukamy pierwszej płaszczyzny pionowej
     for (const auto& plane : rightPlanes) {
         if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
-            currentAzimuthB = plane.params.azimuth_angle;
-            break;
+            double currentAzimuthB = plane.params.azimuth_angle;
+
+            // Zapisujemy kąt tylko jeśli zmienił się znacząco
+            const double AZIMUTH_THRESHOLD = 1.0; // Próg zmiany w stopniach
+            if (std::abs(currentAzimuthB - lastAzimuthB) > AZIMUTH_THRESHOLD) {
+                lastAzimuthB = currentAzimuthB;
+                qint64 timestamp = QDateTime::currentMSecsSinceEpoch();
+
+                if (logFile.isOpen()) {
+                    logStream << timestamp << "," << currentAzimuthB << "\n";
+                    logStream.flush(); // Zapewnienie natychmiastowego zapisu
+                    qDebug() << "Zapisano nowy kąt azymutu. Timestamp:"
+                             << timestamp << "AzimuthB:" << currentAzimuthB;
+                }
+            }
+            break; // Wystarczy pierwsza znaleziona płaszczyzna pionowa
         }
     }
 
-    // Sprawdzenie, czy kąt azymutu się zmienił
-    const double AZIMUTH_THRESHOLD = 1.0; // Próg zmiany w stopniach
-    if (std::abs(currentAzimuthB - lastAzimuthB) > AZIMUTH_THRESHOLD) {
-        lastAzimuthB = currentAzimuthB;
-        qint64 timestamp = QDateTime::currentMSecsSinceEpoch();
-        if (logFile.isOpen()) {
-            logStream << timestamp << "," << lastAzimuthB << "\n";
-            logStream.flush(); // Upewnienie się, że dane są zapisywane na bieżąco
-            qDebug() << "AzimuthB changed. Timestamp:" << timestamp << "AzimuthB:" << lastAzimuthB;
-        }
-    }
-
-    // Kontynuacja przetwarzania danych nawigacji
+    // Kontynuacja standardowego przetwarzania nawigacji
     processNavigationStep();
 }
 
@@ -185,12 +209,12 @@ void AutonomousNav::updateDirectionLabel(char command) {
 }
 
 void AutonomousNav::processNavigationStep() {
-    qDebug() << "Processing navigation step. isNavigating:" << isNavigating;
+    //qDebug() << "Processing navigation step. isNavigating:" << isNavigating;
     if (!isNavigating) {
         serialHandler->setSpeed(0);
         sendMovementCommand('S');
         updateDirectionLabel('S');
-        qDebug() << "Navigation is not active. Sent stop command.";
+        //qDebug() << "Navigation is not active. Sent stop command.";
         return;
     }
 
@@ -199,29 +223,29 @@ void AutonomousNav::processNavigationStep() {
     auto frontSensor = serialHandler->sensorLastData['C'];
 
     if (frontSensor.isEmpty() || leftSensor.isEmpty() || rightSensor.isEmpty()) {
-        qDebug() << "Incomplete sensor data. Skipping navigation step.";
+        //qDebug() << "Incomplete sensor data. Skipping navigation step.";
         return;
     }
 
     if (checkFrontCollisionRisk(frontSensor)) {
         if (!isCurrentlyTurning) {
-            qDebug() << "Collision risk detected in front. Handling front wall.";
+            //qDebug() << "Collision risk detected in front. Handling front wall.";
             handleFrontWall();
         }
         return;
     }
 
     if (isCurrentlyTurning) {
-        qDebug() << "Currently turning. Handling turning sequence.";
+        //qDebug() << "Currently turning. Handling turning sequence.";
         handleTurningSequence(leftSensor, rightSensor, frontSensor);
     } else {
-        qDebug() << "Following wall sequence.";
+        //qDebug() << "Following wall sequence.";
         followWallSequence(leftSensor, rightSensor);
     }
 }
 
 bool AutonomousNav::checkFrontCollisionRisk(const QList<QList<int>>& frontSensor) {
-    qDebug() << "Checking front collision risk.";
+    //qDebug() << "Checking front collision risk.";
     // Detect multiple planes in frontSensor
     std::vector<MultiPlaneDetector::Plane> frontPlanes =
         MultiPlaneDetector::detectMultiplePlanes(frontSensor);
@@ -229,7 +253,7 @@ bool AutonomousNav::checkFrontCollisionRisk(const QList<QList<int>>& frontSensor
     for (const auto& plane : frontPlanes) {
         if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
             if (std::abs(plane.params.d) < FRONT_WALL_DISTANCE) {
-                qDebug() << "Front vertical wall detected with d:" << plane.params.d;
+                //qDebug() << "Front vertical wall detected with d:" << plane.params.d;
                 return true;
             }
         }
@@ -244,7 +268,7 @@ void AutonomousNav::handleTurningSequence(
     const QList<QList<int>>& frontSensor) {
 
     if (!isNavigating || !isCurrentlyTurning) {
-        qDebug() << "Not navigating or not currently turning.";
+        //qDebug() << "Not navigating or not currently turning.";
         return;
     }
 
@@ -255,7 +279,7 @@ void AutonomousNav::handleTurningSequence(
     for (const auto& plane : rightPlanes) {
         if (plane.type == MultiPlaneDetector::PlaneType::VERTICAL) {
             double angle = plane.params.azimuth_angle;
-            qDebug() << "Turn sequence - right sensor angle:" << angle;
+            //qDebug() << "Turn sequence - right sensor angle:" << angle;
 
             if (angle >= -10 && angle <= 10) {
                 foundGoodAngle = true;
@@ -294,7 +318,7 @@ void AutonomousNav::followWallSequence(
     const QList<QList<int>>& rightSensor) {
 
     if (!isNavigating) {
-        qDebug() << "Not navigating. Exiting followWallSequence.";
+        //qDebug() << "Not navigating. Exiting followWallSequence.";
         return;
     }
 
@@ -332,9 +356,9 @@ void AutonomousNav::followWallSequence(
         serialHandler->setSpeed(leftSpeed);
         sendMovementCommand('F');
 
-        qDebug() << "Following wall - Angle:" << wallAngle
-                 << "Correction:" << correction
-                 << "Speeds L/R:" << leftSpeed << "/" << rightSpeed;
+        //qDebug() << "Following wall - Angle:" << wallAngle
+        //         << "Correction:" << correction
+        //         << "Speeds L/R:" << leftSpeed << "/" << rightSpeed;
     } else {
         searchForWall();
     }
@@ -342,7 +366,7 @@ void AutonomousNav::followWallSequence(
 
 void AutonomousNav::handleFrontWall() {
     if (!isNavigating) {
-        qDebug() << "Not navigating. Cannot handle front wall.";
+        //qDebug() << "Not navigating. Cannot handle front wall.";
         return;
     }
 
@@ -357,11 +381,11 @@ void AutonomousNav::handleFrontWall() {
 
 void AutonomousNav::searchForWall() {
     if (!isNavigating) {
-        qDebug() << "Not navigating. Cannot search for wall.";
+        //qDebug() << "Not navigating. Cannot search for wall.";
         return;
     }
 
-    qDebug() << "No wall detected, searching...";
+    //qDebug() << "No wall detected, searching...";
     serialHandler->setSpeed(150);
     sendMovementCommand('R');
 }
@@ -375,7 +399,7 @@ void AutonomousNav::performDeceleration() {
 
         // Aktualizacja prędkości na serialHandler
         serialHandler->setSpeed(currentSpeed);
-        qDebug() << "Decelerating... Current speed:" << currentSpeed;
+        //qDebug() << "Decelerating... Current speed:" << currentSpeed;
 
         // Opcjonalnie, możesz aktualizować etykietę kierunku
         updateDirectionLabel('F'); // Zakładając, że 'F' oznacza jazdę do przodu
@@ -384,6 +408,6 @@ void AutonomousNav::performDeceleration() {
         // Prędkość osiągnęła zero, zatrzymujemy dekrementację
         decelerationTimer->stop();
         sendMovementCommand('S');
-        qDebug() << "Robot zatrzymany płynnie.";
+        //qDebug() << "Robot zatrzymany płynnie.";
     }
 }

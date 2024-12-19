@@ -71,7 +71,7 @@ QList<QList<int>> Draw::preprocessSensorData(const QList<QList<int>> &sensorData
 
     if (outlierIndices.size() > static_cast<size_t>(maxOutliers)) {
         outlierIndices.erase(outlierIndices.begin() + maxOutliers, outlierIndices.end());
-        qDebug() << "Warning: More than" << maxOutliers << "extreme outliers detected. Only correcting the first" << maxOutliers << ".";
+    //    qDebug() << "Warning: More than" << maxOutliers << "extreme outliers detected. Only correcting the first" << maxOutliers << ".";
     }
 
     return data;
@@ -79,7 +79,7 @@ QList<QList<int>> Draw::preprocessSensorData(const QList<QList<int>> &sensorData
 
 QList<QList<int>> Draw::rotate90Right(const QList<QList<int>> &original) {
     if (original.isEmpty()) {
-        qDebug() << "Empty input data in rotate90Right";
+    //    qDebug() << "Empty input data in rotate90Right";
         return original;
     }
 

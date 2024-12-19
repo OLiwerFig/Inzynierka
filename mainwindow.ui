@@ -242,7 +242,7 @@ QPushButton#buttonConnect:pressed {
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="2,10">
+         <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="4,20,1">
           <property name="spacing">
            <number>0</number>
           </property>
@@ -328,6 +328,25 @@ QComboBox::down-arrow {
     height: 10px;
 }
 </string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="activeSensorsLabel">
+            <property name="styleSheet">
+             <string notr="true">QLabel {
+    padding: 5px;
+    margin: 0px;
+    border: 2px solid #4F6F52;
+    border-radius: 5px;
+    background-color: white;
+    color: black; 
+    font-size: 16px; 
+}
+</string>
+            </property>
+            <property name="text">
+             <string>TextLabel</string>
             </property>
            </widget>
           </item>

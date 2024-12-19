@@ -9,6 +9,9 @@
 #include <QTimer>
 #include <QFile>
 #include <QTextStream>
+#include <QDir>
+#include <QDateTime>
+
 
 class PIDController {
 public:
@@ -30,9 +33,19 @@ public:
 
 private:
 
-    QFile logFile;              // Plik logów
-    QTextStream logStream;      // Strumień tekstowy do zapisu
-    double lastAzimuthB;        // Ostatni znany kąt azymutu dla czujnika B
+
+
+
+    QString logsDirectory;        // Katalog na pliki logów
+    QString currentLogFileName;   // Nazwa aktualnego pliku logów
+    QFile logFile;               // Plik logów
+    QTextStream logStream;       // Strumień tekstowy do zapisu
+    double lastAzimuthB;         // Ostatni znany kąt azymutu dla czujnika B
+
+    void initializeLogging();    // Nowa metoda do inicjalizacji logowania
+
+
+
 
     // Komponenty
     serialport* serialHandler;

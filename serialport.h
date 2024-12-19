@@ -29,7 +29,19 @@ public:
     int currentSpeed = 400; // Domyślna prędkość
     void setSpeed(int speed) { currentSpeed = speed; }
 
+    int getActiveSensorsCount() const {
+        int count = 0;
+        for (const auto& sensor : {'A', 'B', 'C'}) {
+            if (!sensorLastData[sensor].isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+
 signals:
+    void activeSensorCountChanged(int count);
     void serialDataReceived(const QList<QByteArray> &data);
     void portStatusChanged(bool connected, const QString &portName);
 

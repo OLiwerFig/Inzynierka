@@ -102,9 +102,12 @@ void serialport::populateAvailablePorts(Ui::MainWindow *ui) {
 
 void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QGraphicsScene *scene, const QList<QByteArray> &values)
 {
+
+    static int lastSensorCount = 0;
+
     for (const QByteArray &line : values) {
         QString trimmedLine = QString::fromUtf8(line).trimmed();
-        qDebug() << "Otrzymano linię:" << trimmedLine;
+        //qDebug() << "Otrzymano linię:" << trimmedLine;
 
         if (trimmedLine.startsWith("$PWM")) {
             // Obsługa PWM bez zmian
@@ -129,20 +132,27 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
             continue;
         }
 
+        int currentSensorCount = getActiveSensorsCount();
+        if (currentSensorCount != lastSensorCount) {
+            lastSensorCount = currentSensorCount;
+            emit activeSensorCountChanged(currentSensorCount);
+            ui->activeSensorsLabel->setText(QString("Sensors: %1/3").arg(currentSensorCount));
+        }
+
         if (trimmedLine.startsWith("CMD_")) {
-            qDebug() << "Otrzymano potwierdzenie:" << trimmedLine;
+            //qDebug() << "Otrzymano potwierdzenie:" << trimmedLine;
             continue;
         }
 
         if (trimmedLine == "A" || trimmedLine == "B" || trimmedLine == "C") {
             currentSensor = trimmedLine.at(0).toLatin1();
-            qDebug() << "Zmieniono aktywny czujnik na:" << currentSensor;
+            //qDebug() << "Zmieniono aktywny czujnik na:" << currentSensor;
         } else {
             // Przetwarzanie danych z czujnika (8x8)
             QStringList dataList = trimmedLine.split(' ', Qt::SkipEmptyParts);
 
             if (dataList.size() != 64) {
-                qDebug() << "Błąd: Nieprawidłowa liczba wartości:" << dataList.size();
+            //    qDebug() << "Błąd: Nieprawidłowa liczba wartości:" << dataList.size();
                 continue;
             }
 
@@ -157,7 +167,7 @@ void serialport::handleSerialData(MainWindow *mainWindow, Ui::MainWindow *ui, QG
                         bool ok;
                         int value = dataList[index].toInt(&ok);
                         if (!ok) {
-                            qDebug() << "Błąd konwersji wartości:" << dataList[index];
+                        //    qDebug() << "Błąd konwersji wartości:" << dataList[index];
                             conversionOk = false;
                             break;
                         }

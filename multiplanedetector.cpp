@@ -391,7 +391,7 @@ std::vector<MultiPlaneDetector::Plane> MultiPlaneDetector::detectMultiplePlanes(
             std::vector<size_t> outlier_indices = identifyOutliers(current_coords, a, b, c, d, THRESHOLD_FACTOR);
 
             if (outlier_indices.empty()) {
-                qDebug() << "No outliers detected in iteration" << iteration;
+                //qDebug() << "No outliers detected in iteration" << iteration;
 
                 // Create final plane
                 Plane plane;
@@ -413,20 +413,20 @@ std::vector<MultiPlaneDetector::Plane> MultiPlaneDetector::detectMultiplePlanes(
                 plane.params.azimuth_angle = is_increasing ? angle : -angle;
 
                 // Wyświetlamy dodatkowe informacje debugowe
-                qDebug() << "Trend:" << (is_increasing ? "rosnący" : "malejący");
-                qDebug() << "Kąt azymutu:" << plane.params.azimuth_angle;
-                qDebug() << "Wektor normalny:" << a << b << c;
+                //qDebug() << "Trend:" << (is_increasing ? "rosnący" : "malejący");
+                //qDebug() << "Kąt azymutu:" << plane.params.azimuth_angle;
+                //qDebug() << "Wektor normalny:" << a << b << c;
 
                 // Klasyfikacja typu płaszczyzny na podstawie kąta z osią Z
                 double normalized_c = std::abs(c/norm);
                 if (normalized_c < 0.3) { // Mały kąt z osią Z oznacza płaszczyznę poziomą
                     plane.type = PlaneType::HORIZONTAL;
-                    qDebug() << "Typ płaszczyzny: Pozioma";
+                //    qDebug() << "Typ płaszczyzny: Pozioma";
                 } else {
                     plane.type = PlaneType::VERTICAL;
-                    qDebug() << "Typ płaszczyzny: Pionowa"
-                             << "- wartości" << (is_increasing ? "rosną" : "maleją")
-                             << "w kierunku płaszczyzny XY";
+                //    qDebug() << "Typ płaszczyzny: Pionowa"
+                //             << "- wartości" << (is_increasing ? "rosną" : "maleją")
+                //             << "w kierunku płaszczyzny XY";
                 }
 
                 // Obliczanie kąta elewacji względem płaszczyzny XZ

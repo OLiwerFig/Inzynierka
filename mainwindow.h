@@ -39,6 +39,7 @@ private:
     Map *map;
     void onSpeedSliderChanged(int value);
        void toggleAutoNavigation();
+       void updateSensorCount(int count);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
